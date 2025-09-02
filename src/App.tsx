@@ -9,7 +9,8 @@ function App(): JSX.Element {
       justifyContent: 'center',
       alignItems: 'center'
     }}>
-      <img src={logo} alt="Logo" style={{ width: '700px' }} />
+      <img src={logo} alt="Logo" style={{ width: '700px' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+      <div style={{ color: 'white', fontSize: '48px', fontWeight: 'bold' }}>MINNEBO AI</div>
     </div>
   );
 }
