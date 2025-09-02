@@ -6,6 +6,29 @@
   <title>Minnebo AI</title>
   <style>
     body { margin: 0; }
+    .thick-cursor {
+      caret-color: transparent;
+    }
+    .thick-cursor::after {
+      content: '';
+      position: absolute;
+      width: 8px;
+      height: 20px;
+      background-color: #FF69B4;
+      animation: blink 1s infinite;
+    }
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+    ::selection {
+      background-color: #40FF00;
+      color: #200F3B;
+    }
+    ::-moz-selection {
+      background-color: #40FF00;
+      color: #200F3B;
+    }
   </style>
 </head>
 <body>

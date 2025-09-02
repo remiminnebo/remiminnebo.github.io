@@ -18,7 +18,7 @@ function App(): JSX.Element {
 
   return (
     <div style={{
-      backgroundColor: answer === 'The answer is Yes.' ? '#1C71E9' : '#03BFF3',
+      backgroundColor: '#03BFF3',
       height: '100vh',
       display: 'flex',
       flexDirection: 'column',
@@ -36,6 +36,7 @@ function App(): JSX.Element {
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && handleSend()}
           placeholder="Hit me with some wonderin'! Ask away."
+          className="thick-cursor"
           style={{
             padding: '12px 16px',
             fontSize: '16px',
@@ -45,7 +46,9 @@ function App(): JSX.Element {
             outline: 'none',
             fontFamily: 'Tahoma, sans-serif',
             backgroundColor: 'rgba(255,255,255,0.9)',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            caretColor: '#FF69B4',
+            color: '#200F3B'
           }}
         />
         <button
@@ -81,7 +84,8 @@ function App(): JSX.Element {
           maxWidth: '500px',
           textAlign: 'center',
           fontFamily: 'Tahoma, sans-serif',
-          fontWeight: 'bold'
+          fontWeight: 'bold',
+          color: '#200F3B'
         }}>
           {answer}
         </div>
