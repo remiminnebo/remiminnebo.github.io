@@ -16,7 +16,7 @@ function App(): JSX.Element {
 
   const handleSend = () => {
     if (input.trim()) {
-      const responses = ['Just keep an open mind...', 'The answer is Yes.'];
+      const responses = ['Clarity arrives when the mind is unguarded.', 'The path opens to Yes.'];
       setAnswer(responses[responseIndex]);
       setResponseIndex((responseIndex + 1) % 2);
       setInput('');
