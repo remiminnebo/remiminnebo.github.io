@@ -7,6 +7,12 @@ function App(): JSX.Element {
   const [isHovered, setIsHovered] = useState(false);
   const [responseIndex, setResponseIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [showSnake, setShowSnake] = useState(false);
+  const [snake, setSnake] = useState([{x: 10, y: 10}]);
+  const [food, setFood] = useState({x: 15, y: 15});
+  const [direction, setDirection] = useState({x: 0, y: 1});
+  const [score, setScore] = useState(0);
+  const [highScore, setHighScore] = useState(parseInt(localStorage.getItem('snakeHighScore') || '0'));
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -14,8 +20,67 @@ function App(): JSX.Element {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    if (!showSnake) return;
+    const handleKeyPress = (e) => {
+      switch(e.key) {
+        case 'ArrowUp': setDirection({x: 0, y: -1}); break;
+        case 'ArrowDown': setDirection({x: 0, y: 1}); break;
+        case 'ArrowLeft': setDirection({x: -1, y: 0}); break;
+        case 'ArrowRight': setDirection({x: 1, y: 0}); break;
+        case 'Escape': setShowSnake(false); break;
+      }
+    };
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [showSnake]);
+
+  useEffect(() => {
+    if (!showSnake) return;
+    const gameLoop = setInterval(() => {
+      setSnake(currentSnake => {
+        const newSnake = [...currentSnake];
+        const head = {x: newSnake[0].x + direction.x, y: newSnake[0].y + direction.y};
+        
+        if (head.x < 0 || head.x >= 30 || head.y < 0 || head.y >= 20 || 
+            newSnake.some(segment => segment.x === head.x && segment.y === head.y)) {
+          setShowSnake(false);
+          setSnake([{x: 10, y: 10}]);
+          setDirection({x: 0, y: 1});
+          setScore(0);
+          return currentSnake;
+        }
+        
+        newSnake.unshift(head);
+        
+        if (head.x === food.x && head.y === food.y) {
+          setScore(s => {
+            const newScore = s + 1;
+            if (newScore > highScore) {
+              setHighScore(newScore);
+              localStorage.setItem('snakeHighScore', newScore.toString());
+            }
+            return newScore;
+          });
+          setFood({x: Math.floor(Math.random() * 30), y: Math.floor(Math.random() * 20)});
+        } else {
+          newSnake.pop();
+        }
+        
+        return newSnake;
+      });
+    }, 150);
+    
+    return () => clearInterval(gameLoop);
+  }, [showSnake, direction, food, highScore]);
+
   const handleSend = () => {
     if (input.trim()) {
+      if (input.toLowerCase() === 'snake') {
+        setShowSnake(true);
+        setInput('');
+        return;
+      }
       const responses = ['Clarity arrives when the mind is unguarded.', 'The path opens to Yes.'];
       setAnswer(responses[responseIndex]);
       setResponseIndex((responseIndex + 1) % 2);
@@ -73,6 +138,71 @@ function App(): JSX.Element {
       </button>
     </div>
   );
+
+  if (showSnake) {
+    return (
+      <div style={{
+        backgroundColor: '#03BFF3',
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        fontFamily: 'Tahoma, sans-serif',
+        position: 'relative'
+      }}>
+        <div style={{
+          position: 'absolute',
+          top: '20px',
+          left: '20px',
+          color: 'white',
+          fontSize: '24px',
+          fontWeight: 'bold'
+        }}>
+          HIGH SCORE: {highScore}
+        </div>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh'
+        }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(30, 20px)',
+            gridTemplateRows: 'repeat(20, 20px)',
+            gap: '1px',
+            backgroundColor: '#333'
+          }}>
+            {Array.from({length: 600}, (_, i) => {
+              const x = i % 30;
+              const y = Math.floor(i / 30);
+              const isSnake = snake.some(segment => segment.x === x && segment.y === y);
+              const isFood = food.x === x && food.y === y;
+              return (
+                <div
+                  key={i}
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    backgroundColor: isSnake ? '#310080' : isFood ? '#FF0004' : '#03BFF3'
+                  }}
+                />
+              );
+            })}
+          </div>
+        </div>
+        <div style={{
+          position: 'absolute',
+          bottom: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          color: 'white',
+          fontSize: '16px'
+        }}>
+          Use arrow keys to play • ESC to exit
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
