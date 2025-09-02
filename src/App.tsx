@@ -30,7 +30,7 @@ function App(): JSX.Element {
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-        placeholder="Hit me with some wonderin'! Ask away."
+        placeholder="Cast your question into the flow, and let us see where it drifts."
         className="thick-cursor"
         style={{
           padding: '12px 16px',
