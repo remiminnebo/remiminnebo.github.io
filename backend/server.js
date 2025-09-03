@@ -2,6 +2,10 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+console.log('Starting server...');
+console.log('PORT:', PORT);
+console.log('NODE_ENV:', process.env.NODE_ENV);
+
 // Simple CORS middleware
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -58,6 +62,8 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
+}).on('error', (err) => {
+  console.error('Server error:', err);
 });
