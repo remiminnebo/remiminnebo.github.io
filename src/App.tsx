@@ -5,6 +5,13 @@ function App(): JSX.Element {
   const [input, setInput] = useState('');
   const [answer, setAnswer] = useState('');
   const [lastQuestion, setLastQuestion] = useState('');
+
+  const parseMarkdown = (text: string) => {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/\n/g, '<br />');
+  };
   const [isHovered, setIsHovered] = useState(false);
   const [responseIndex, setResponseIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -257,20 +264,23 @@ function App(): JSX.Element {
         )}
         
         {answer && (
-          <div style={{
-            backgroundColor: 'rgba(255,255,255,0.8)',
-            padding: '16px',
-            borderRadius: '8px',
-            fontSize: '18px',
-            maxWidth: isMobile ? '90vw' : '400px',
-            width: isMobile ? '100%' : 'auto',
-            textAlign: 'center',
-            fontFamily: 'Tahoma, sans-serif',
-            fontWeight: 'bold',
-            color: '#200F3B'
-          }}>
-            {answer}
-          </div>
+          <div 
+            style={{
+              backgroundColor: 'rgba(255,255,255,0.8)',
+              padding: '20px',
+              borderRadius: '12px',
+              fontSize: '18px',
+              lineHeight: '1.6',
+              maxWidth: isMobile ? '90vw' : '500px',
+              width: isMobile ? '100%' : 'auto',
+              textAlign: 'left',
+              fontFamily: 'Tahoma, sans-serif',
+              fontWeight: 'normal',
+              color: '#200F3B',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            }}
+            dangerouslySetInnerHTML={{ __html: parseMarkdown(answer) }}
+          />
         )}
       </div>
       
