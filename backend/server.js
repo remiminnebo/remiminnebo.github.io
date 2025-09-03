@@ -1,65 +1,31 @@
 const express = require('express');
-const fetch = require('node-fetch');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 console.log('Starting server...');
 console.log('PORT:', PORT);
-console.log('NODE_ENV:', process.env.NODE_ENV);
 
-// Simple CORS middleware
+// CORS
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
   next();
 });
 
-// Handle OPTIONS requests
-app.options('*', (req, res) => {
-  res.sendStatus(200);
-});
-
-// Body parser
 app.use(express.json());
 
 app.get('/', (req, res) => {
-  res.json({ status: 'Backend is running!', port: PORT });
+  res.json({ status: 'Backend is running!', port: PORT, env: process.env.NODE_ENV });
 });
 
-app.post('/api/chat', async (req, res) => {
-  try {
-    const { message } = req.body;
-    
-    // node-fetch is already imported at the top
-    
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: message
-          }]
-        }]
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (data.error) {
-      return res.status(400).json({ error: data.error.message });
-    }
-    
-    const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
-    res.json({ response: aiResponse });
-    
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+app.post('/api/chat', (req, res) => {
+  console.log('Received chat request:', req.body);
+  const { message } = req.body;
+  res.json({ response: `Echo: ${message}` });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
