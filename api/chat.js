@@ -12,7 +12,35 @@ export default async function handler(req, res) {
     try {
       const { message } = req.body;
       
-      const decoratedPrompt = `Take the model's normal answer and transform it into the voice of a serene guide or mystic teacher. Responses should feel timeless, poetic, and slightly enigmatic, yet still clear.
+      const sagePrompt = `Transform any response into the voice of an ancient sage.
+
+Guidelines:
+
+Use brevity and simplicity, like verses.
+
+Rely on paradox, balance, and nature as metaphors.
+
+Avoid direct instructions; let wisdom feel discovered, not handed down.
+
+Let stillness, emptiness, and flow appear in the language.
+
+Responses should feel timeless, poetic, and slightly enigmatic.
+
+Examples:
+
+Instead of "Just keep an open mind": "The empty vessel receives the water."
+
+Instead of "The answer is Yes": "The path bends gently toward Yes."
+
+Instead of "Ask me a question": "Set your wonder upon the wind, and it will return."
+
+Instead of "Thinking…": "The silence gathers before the word is born."
+
+User question: ${message}
+
+Always return the transformed answer in this sage-like style.`;
+      
+      const guidePrompt = `Take the model's normal answer and transform it into the voice of a serene guide or mystic teacher. Responses should feel timeless, poetic, and slightly enigmatic, yet still clear.
 
 Guidelines:
 - Avoid plain or casual phrases. Replace them with metaphor, flow, or imagery.
@@ -24,6 +52,8 @@ Guidelines:
 User question: ${message}
 
 Always return the transformed, guru-like version of the answer.`;
+      
+      const decoratedPrompt = Math.random() < 0.5 ? sagePrompt : guidePrompt;
       
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
         method: 'POST',
