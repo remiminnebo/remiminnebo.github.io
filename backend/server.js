@@ -5,14 +5,19 @@ const PORT = process.env.PORT || 3001;
 console.log('Starting server...');
 console.log('PORT:', PORT);
 
-// CORS
+// CORS - handle preflight
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type');
+  
+  // Handle preflight
   if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
+    console.log('OPTIONS request received');
+    return res.status(200).end();
   }
+  
+  console.log(`${req.method} ${req.path}`);
   next();
 });
 
