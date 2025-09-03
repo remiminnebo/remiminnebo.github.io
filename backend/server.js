@@ -7,9 +7,13 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors({
-  origin: ['https://minnebo.ai', 'http://localhost:3000'],
-  credentials: true
+  origin: '*',
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type']
 }));
+
+// Add preflight handling
+app.options('*', cors());
 app.use(express.json());
 
 app.get('/', (req, res) => {
@@ -49,6 +53,8 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
+}).on('error', (err) => {
+  console.error('Server failed to start:', err);
 });
