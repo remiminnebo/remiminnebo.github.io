@@ -5,8 +5,15 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+app.use(cors({
+  origin: ['https://minnebo.ai', 'http://localhost:3000'],
+  credentials: true
+}));
 app.use(express.json());
+
+app.get('/', (req, res) => {
+  res.json({ status: 'Backend is running!' });
+});
 
 app.post('/api/chat', async (req, res) => {
   try {
