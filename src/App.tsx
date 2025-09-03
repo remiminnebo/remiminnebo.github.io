@@ -74,17 +74,41 @@ function App(): JSX.Element {
     return () => clearInterval(gameLoop);
   }, [showSnake, direction, food, highScore]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (input.trim()) {
       if (input.toLowerCase() === 'snake') {
         setShowSnake(true);
         setInput('');
         return;
       }
-      const responses = ['Clarity arrives when the mind is unguarded.', 'The path opens to Yes.'];
-      setAnswer(responses[responseIndex]);
-      setResponseIndex((responseIndex + 1) % 2);
+      
+      const userMessage = input;
       setInput('');
+      setAnswer('Thinking...');
+      
+      try {
+        const response = await fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:3001'}/api/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: userMessage
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+          setAnswer(`Error: ${data.error}`);
+          return;
+        }
+        
+        setAnswer(data.response);
+      } catch (error) {
+        console.error('Fetch error:', error);
+        setAnswer('Connection error. Please try again.');
+      }
     }
   };
 
