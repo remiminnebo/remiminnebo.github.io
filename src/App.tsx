@@ -87,7 +87,7 @@ function App(): JSX.Element {
       setAnswer('Thinking...');
       
       try {
-        const response = await fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:3001'}/api/chat`, {
+        const response = await fetch('https://minnebo-ai.vercel.app/api/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
