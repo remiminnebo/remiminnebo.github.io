@@ -1,28 +1,30 @@
 const express = require('express');
-const cors = require('cors');
-const fetch = require('node-fetch');
-require('dotenv').config();
-
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type']
-}));
-
-// Add preflight handling
-app.options('*', cors());
+// Basic middleware
 app.use(express.json());
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
 
 app.get('/', (req, res) => {
-  res.json({ status: 'Backend is running!' });
+  res.json({ status: 'Backend is running!', port: PORT });
 });
 
 app.post('/api/chat', async (req, res) => {
   try {
     const { message } = req.body;
+    
+    // Use dynamic import for node-fetch
+    const fetch = (await import('node-fetch')).default;
     
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
       method: 'POST',
@@ -53,8 +55,6 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-}).on('error', (err) => {
-  console.error('Server failed to start:', err);
 });
