@@ -1,4 +1,5 @@
 const express = require('express');
+const fetch = require('node-fetch');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -30,8 +31,7 @@ app.post('/api/chat', async (req, res) => {
   try {
     const { message } = req.body;
     
-    // Use dynamic import for node-fetch
-    const fetch = (await import('node-fetch')).default;
+    // node-fetch is already imported at the top
     
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
       method: 'POST',
