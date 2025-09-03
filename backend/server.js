@@ -2,16 +2,17 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// CORS middleware - must be first
+// Simple CORS middleware
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
   next();
+});
+
+// Handle OPTIONS requests
+app.options('*', (req, res) => {
+  res.sendStatus(200);
 });
 
 // Body parser
@@ -19,14 +20,6 @@ app.use(express.json());
 
 app.get('/', (req, res) => {
   res.json({ status: 'Backend is running!', port: PORT });
-});
-
-// Explicit OPTIONS handler for API route
-app.options('/api/chat', (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
-  res.status(200).end();
 });
 
 app.post('/api/chat', async (req, res) => {
