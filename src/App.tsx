@@ -93,7 +93,7 @@ function App(): JSX.Element {
       const userMessage = input;
       setLastQuestion(userMessage);
       setInput('');
-      setAnswer('Thinking...');
+      setAnswer('Tracing the currents beneath the question…');
       
       try {
         const response = await fetch('https://minnebo-ai.vercel.app/api/chat', {
