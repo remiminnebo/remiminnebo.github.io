@@ -1,11 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const fetch = require('node-fetch');
 require('dotenv').config();
-
-// Add fetch polyfill for Node.js
-if (!global.fetch) {
-  global.fetch = require('node-fetch');
-}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
