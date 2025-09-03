@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 function App(): JSX.Element {
   const [input, setInput] = useState('');
   const [answer, setAnswer] = useState('');
+  const [lastQuestion, setLastQuestion] = useState('');
   const [isHovered, setIsHovered] = useState(false);
   const [responseIndex, setResponseIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -83,6 +84,7 @@ function App(): JSX.Element {
       }
       
       const userMessage = input;
+      setLastQuestion(userMessage);
       setInput('');
       setAnswer('Thinking...');
       
@@ -119,7 +121,7 @@ function App(): JSX.Element {
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-        placeholder="Cast your question into the flow..."
+        placeholder={lastQuestion || "Cast your question into the flow..."}
         className="thick-cursor"
         style={{
           padding: '12px 16px',

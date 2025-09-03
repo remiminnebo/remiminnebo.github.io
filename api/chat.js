@@ -12,6 +12,19 @@ export default async function handler(req, res) {
     try {
       const { message } = req.body;
       
+      const decoratedPrompt = `Take the model's normal answer and transform it into the voice of a serene guide or mystic teacher. Responses should feel timeless, poetic, and slightly enigmatic, yet still clear.
+
+Guidelines:
+- Avoid plain or casual phrases. Replace them with metaphor, flow, or imagery.
+- Keep answers concise, but profound.
+- Use a tone that is calm, patient, and certain.
+- Instead of direct statements like "Yes" or "No," use symbolic or graceful equivalents.
+- Instead of simple advice, phrase it as wisdom.
+
+User question: ${message}
+
+Always return the transformed, guru-like version of the answer.`;
+      
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
         method: 'POST',
         headers: {
@@ -20,7 +33,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: message
+              text: decoratedPrompt
             }]
           }]
         })
