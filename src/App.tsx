@@ -2,16 +2,34 @@ import logo from './logo.svg';
 import { useState, useEffect } from 'react';
 
 function App(): JSX.Element {
-  // Add CSS animation for typing dots
+  // Add CSS animations
   const style = document.createElement('style');
   style.textContent = `
     @keyframes pulse {
       0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
       40% { transform: scale(1); opacity: 1; }
     }
+    @keyframes trippy {
+      0% { transform: scale(1) rotate(0deg); }
+      25% { transform: scale(1.02) rotate(0.5deg); }
+      50% { transform: scale(1.04) rotate(0deg); }
+      75% { transform: scale(1.02) rotate(-0.5deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+    @keyframes trippy2 {
+      0% { transform: scale(0.98) rotate(0deg) skewX(0deg); }
+      50% { transform: scale(1.06) rotate(-1deg) skewX(1deg); }
+      100% { transform: scale(0.98) rotate(0deg) skewX(0deg); }
+    }
+    @keyframes trippy3 {
+      0% { transform: translateX(0px) translateY(0px); }
+      33% { transform: translateX(1px) translateY(-0.5px); }
+      66% { transform: translateX(-0.5px) translateY(1px); }
+      100% { transform: translateX(0px) translateY(0px); }
+    }
   `;
-  if (!document.head.querySelector('style[data-typing]')) {
-    style.setAttribute('data-typing', 'true');
+  if (!document.head.querySelector('style[data-animations]')) {
+    style.setAttribute('data-animations', 'true');
     document.head.appendChild(style);
   }
   const [input, setInput] = useState('');
@@ -141,8 +159,6 @@ function App(): JSX.Element {
             result += chunk;
             setAnswer(result);
           }
-          
-
         }
       } catch (error) {
         console.error('Fetch error:', error);
@@ -286,15 +302,56 @@ function App(): JSX.Element {
         padding: '20px',
         paddingBottom: isMobile ? '120px' : '20px'
       }}>
-        <img src={logo} alt="Logo" style={{ width: '90vw', maxWidth: '700px', marginBottom: '40px' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+        <div style={{
+          position: 'relative',
+          width: '90vw',
+          maxWidth: '700px',
+          marginBottom: '40px'
+        }}>
+          <img 
+            src={logo} 
+            alt="Logo" 
+            style={{ 
+              width: '100%',
+              animation: 'trippy 8s ease-in-out infinite'
+            }} 
+            onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+          />
+          <img 
+            src={logo} 
+            alt="" 
+            style={{ 
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              animation: 'trippy2 6s ease-in-out infinite reverse',
+              opacity: 0.3,
+              mixBlendMode: 'multiply'
+            }} 
+            onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+          />
+          <img 
+            src={logo} 
+            alt="" 
+            style={{ 
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              animation: 'trippy3 10s linear infinite',
+              opacity: 0.2,
+              mixBlendMode: 'screen'
+            }} 
+            onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+          />
+        </div>
         
         {!isMobile && (
           <div style={{ marginBottom: '20px', width: '100%', display: 'flex', justifyContent: 'center' }}>
             {chatInput}
           </div>
         )}
-        
-
         
         {/* Typing Indicator */}
         {isTyping && (
