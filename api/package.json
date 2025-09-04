@@ -1,0 +1,7 @@
+{
+  "name": "minnebo-ai-api",
+  "version": "1.0.0",
+  "dependencies": {
+    "@types/node": "^18.0.0"
+  }
+}
