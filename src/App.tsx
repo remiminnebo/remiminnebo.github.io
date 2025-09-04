@@ -123,22 +123,37 @@ function App(): JSX.Element {
         
         if (contentType?.includes('text/plain')) {
           console.log('Handling streaming response');
+          console.log('Response body available:', !!response.body);
           // Handle streaming response
           const reader = response.body?.getReader();
           const decoder = new TextDecoder();
           let result = '';
           
           if (reader) {
+            console.log('Reader available, starting stream...');
             setAnswer('');
+            let chunkCount = 0;
             while (true) {
               const { done, value } = await reader.read();
-              if (done) break;
+              chunkCount++;
+              console.log(`Chunk ${chunkCount}: done=${done}, value length=${value?.length || 0}`);
+              if (done) {
+                console.log('Stream finished, total result length:', result.length);
+                break;
+              }
               
               const chunk = decoder.decode(value, { stream: true });
               result += chunk;
-              console.log('Chunk received:', chunk);
+              console.log('Chunk received:', JSON.stringify(chunk));
+              console.log('Total result so far:', result.length, 'chars');
               setAnswer(result);
             }
+            if (result.length === 0) {
+              setAnswer('No response received from API');
+            }
+          } else {
+            console.log('No reader available');
+            setAnswer('Stream reader not available');
           }
         } else {
           console.log('Handling JSON response');
