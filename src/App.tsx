@@ -94,8 +94,10 @@ function App(): JSX.Element {
       setLastQuestion(userMessage);
       setInput('');
       setAnswer('Tracing the currents beneath the question…');
+      console.log('Question:', userMessage);
       
       try {
+        console.log('Sending request to API...');
         const response = await fetch('https://minnebo-ai.vercel.app/api/chat', {
           method: 'POST',
           headers: {
@@ -106,14 +108,19 @@ function App(): JSX.Element {
           })
         });
         
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers.get('content-type'));
+        
         if (!response.ok) {
-          setAnswer('Connection error. Please try again.');
+          setAnswer(`Connection error: ${response.status}. Please try again.`);
           return;
         }
         
         const contentType = response.headers.get('content-type');
+        console.log('Content type:', contentType);
         
         if (contentType?.includes('text/plain')) {
+          console.log('Handling streaming response');
           // Handle streaming response
           const reader = response.body?.getReader();
           const decoder = new TextDecoder();
@@ -127,12 +134,15 @@ function App(): JSX.Element {
               
               const chunk = decoder.decode(value, { stream: true });
               result += chunk;
+              console.log('Chunk received:', chunk);
               setAnswer(result);
             }
           }
         } else {
+          console.log('Handling JSON response');
           // Handle JSON response (fallback)
           const data = await response.json();
+          console.log('JSON data:', data);
           if (data.error) {
             setAnswer(`Error: ${data.error}`);
           } else {
