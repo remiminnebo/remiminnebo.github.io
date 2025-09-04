@@ -142,8 +142,7 @@ function App(): JSX.Element {
             setAnswer(result);
           }
           
-          // Add to message history when complete
-          setMessages(prev => [...prev, { question: userMessage, answer: result }]);
+
         }
       } catch (error) {
         console.error('Fetch error:', error);
@@ -295,60 +294,7 @@ function App(): JSX.Element {
           </div>
         )}
         
-        {/* Message History */}
-        {messages.length > 0 && (
-          <div style={{
-            maxWidth: isMobile ? '90vw' : '500px',
-            width: '100%',
-            marginBottom: '20px',
-            maxHeight: '300px',
-            overflowY: 'auto'
-          }}>
-            {messages.map((msg, i) => (
-              <div key={i} style={{ marginBottom: '15px' }}>
-                <div style={{
-                  backgroundColor: 'rgba(32,15,59,0.1)',
-                  padding: '10px 15px',
-                  borderRadius: '8px',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  color: '#200F3B',
-                  marginBottom: '5px'
-                }}>
-                  {msg.question}
-                </div>
-                <div style={{
-                  backgroundColor: 'rgba(255,255,255,0.8)',
-                  padding: '15px',
-                  borderRadius: '8px',
-                  fontSize: '16px',
-                  lineHeight: '1.5',
-                  color: '#200F3B',
-                  position: 'relative'
-                }}>
-                  {msg.answer}
-                  <button
-                    onClick={() => navigator.clipboard.writeText(msg.answer)}
-                    style={{
-                      position: 'absolute',
-                      top: '10px',
-                      right: '10px',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontSize: '16px',
-                      opacity: 0.6,
-                      padding: '4px'
-                    }}
-                    title="Copy wisdom"
-                  >
-                    📋
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+
         
         {/* Typing Indicator */}
         {isTyping && (
@@ -397,7 +343,6 @@ function App(): JSX.Element {
           </div>
         )}
         
-        {/* Current Answer */}
         {answer && (
           <div 
             style={{
@@ -412,29 +357,10 @@ function App(): JSX.Element {
               fontFamily: 'Tahoma, sans-serif',
               fontWeight: 'normal',
               color: '#200F3B',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-              position: 'relative'
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
             }}
-          >
-            <div dangerouslySetInnerHTML={{ __html: parseMarkdown(answer) }} />
-            <button
-              onClick={() => navigator.clipboard.writeText(answer)}
-              style={{
-                position: 'absolute',
-                top: '15px',
-                right: '15px',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '18px',
-                opacity: 0.6,
-                padding: '4px'
-              }}
-              title="Copy wisdom"
-            >
-              📋
-            </button>
-          </div>
+            dangerouslySetInnerHTML={{ __html: parseMarkdown(answer) }}
+          />
         )}
       </div>
       
