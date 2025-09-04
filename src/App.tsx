@@ -96,7 +96,7 @@ function App(): JSX.Element {
       setAnswer('Tracing the currents beneath the question…');
       
       try {
-        const response = await fetch('https://minnebo-ai.vercel.app/api/chat', {
+        const response = await fetch('/api/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -111,19 +111,32 @@ function App(): JSX.Element {
           return;
         }
         
-        const reader = response.body?.getReader();
-        const decoder = new TextDecoder();
-        let result = '';
+        const contentType = response.headers.get('content-type');
         
-        if (reader) {
-          setAnswer('');
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            
-            const chunk = decoder.decode(value, { stream: true });
-            result += chunk;
-            setAnswer(result);
+        if (contentType?.includes('text/plain')) {
+          // Handle streaming response
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+          let result = '';
+          
+          if (reader) {
+            setAnswer('');
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              
+              const chunk = decoder.decode(value, { stream: true });
+              result += chunk;
+              setAnswer(result);
+            }
+          }
+        } else {
+          // Handle JSON response (fallback)
+          const data = await response.json();
+          if (data.error) {
+            setAnswer(`Error: ${data.error}`);
+          } else {
+            setAnswer(data.response);
           }
         }
       } catch (error) {
