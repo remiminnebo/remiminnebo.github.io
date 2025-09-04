@@ -1,5 +1,20 @@
-export default async function handler(req, res) {
-  // CORS headers
+import { NextApiRequest, NextApiResponse } from 'next';
+
+interface RequestBody {
+  message: string;
+}
+
+interface GeminiResponse {
+  candidates?: {
+    content?: {
+      parts?: {
+        text?: string;
+      }[];
+    };
+  }[];
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -10,7 +25,11 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     try {
-      const { message } = req.body;
+      const { message }: RequestBody = req.body;
+      
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
       
       const sagePrompt = `Transform any response into the voice of an ancient sage.
 
@@ -55,7 +74,7 @@ Always return the transformed, guru-like version of the answer.`;
       
       const decoratedPrompt = Math.random() < 0.5 ? sagePrompt : guidePrompt;
       
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?key=${process.env.GEMINI_API_KEY}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -69,20 +88,45 @@ Always return the transformed, guru-like version of the answer.`;
         })
       });
       
-      const data = await response.json();
-      
-      if (data.error) {
-        return res.status(400).json({ error: data.error.message });
+      if (!response.ok) {
+        return res.status(response.status).end('Error from API');
       }
       
-      const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
-      return res.json({ response: aiResponse });
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n').filter(line => line.trim());
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data: GeminiResponse = JSON.parse(line.slice(6));
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) {
+                  res.write(text);
+                }
+              } catch (e) {
+                // Skip invalid JSON
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+        res.end();
+      }
       
     } catch (error) {
       console.error('Error:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      res.status(500).end('Internal server error');
     }
+  } else {
+    res.status(405).end('Method not allowed');
   }
-
-  res.status(405).json({ error: 'Method not allowed' });
 }

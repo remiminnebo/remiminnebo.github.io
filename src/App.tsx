@@ -106,14 +106,26 @@ function App(): JSX.Element {
           })
         });
         
-        const data = await response.json();
-        
-        if (data.error) {
-          setAnswer(`Error: ${data.error}`);
+        if (!response.ok) {
+          setAnswer('Connection error. Please try again.');
           return;
         }
         
-        setAnswer(data.response);
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let result = '';
+        
+        if (reader) {
+          setAnswer('');
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            const chunk = decoder.decode(value, { stream: true });
+            result += chunk;
+            setAnswer(result);
+          }
+        }
       } catch (error) {
         console.error('Fetch error:', error);
         setAnswer('Connection error. Please try again.');
