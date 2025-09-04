@@ -83,7 +83,9 @@ function App(): JSX.Element {
   }, [showSnake, direction, food, highScore]);
 
   const handleSend = async () => {
+    console.log('handleSend called, input:', input);
     if (input.trim()) {
+      console.log('Input is valid, proceeding...');
       if (input.toLowerCase() === 'snake') {
         setShowSnake(true);
         setInput('');
