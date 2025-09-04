@@ -29,6 +29,7 @@ export default async function handler(req: any, res: any) {
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
       res.setHeader('Transfer-Encoding', 'chunked');
+      res.flushHeaders();
       
       const sagePrompt = `Transform any response into the voice of an ancient sage.
 

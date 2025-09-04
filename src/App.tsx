@@ -83,9 +83,7 @@ function App(): JSX.Element {
   }, [showSnake, direction, food, highScore]);
 
   const handleSend = async () => {
-    console.log('handleSend called, input:', input);
     if (input.trim()) {
-      console.log('Input is valid, proceeding...');
       if (input.toLowerCase() === 'snake') {
         setShowSnake(true);
         setInput('');
@@ -96,10 +94,8 @@ function App(): JSX.Element {
       setLastQuestion(userMessage);
       setInput('');
       setAnswer('Tracing the currents beneath the question…');
-      console.log('Question:', userMessage);
       
       try {
-        console.log('Sending request to API...');
         const response = await fetch('https://minnebo-ai.vercel.app/api/chat', {
           method: 'POST',
           headers: {
@@ -110,60 +106,24 @@ function App(): JSX.Element {
           })
         });
         
-        console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers.get('content-type'));
-        
         if (!response.ok) {
-          setAnswer(`Connection error: ${response.status}. Please try again.`);
+          setAnswer('Connection error. Please try again.');
           return;
         }
         
-        const contentType = response.headers.get('content-type');
-        console.log('Content type:', contentType);
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let result = '';
         
-        if (contentType?.includes('text/plain')) {
-          console.log('Handling streaming response');
-          console.log('Response body available:', !!response.body);
-          // Handle streaming response
-          const reader = response.body?.getReader();
-          const decoder = new TextDecoder();
-          let result = '';
-          
-          if (reader) {
-            console.log('Reader available, starting stream...');
-            setAnswer('');
-            let chunkCount = 0;
-            while (true) {
-              const { done, value } = await reader.read();
-              chunkCount++;
-              console.log(`Chunk ${chunkCount}: done=${done}, value length=${value?.length || 0}`);
-              if (done) {
-                console.log('Stream finished, total result length:', result.length);
-                break;
-              }
-              
-              const chunk = decoder.decode(value, { stream: true });
-              result += chunk;
-              console.log('Chunk received:', JSON.stringify(chunk));
-              console.log('Total result so far:', result.length, 'chars');
-              setAnswer(result);
-            }
-            if (result.length === 0) {
-              setAnswer('No response received from API');
-            }
-          } else {
-            console.log('No reader available');
-            setAnswer('Stream reader not available');
-          }
-        } else {
-          console.log('Handling JSON response');
-          // Handle JSON response (fallback)
-          const data = await response.json();
-          console.log('JSON data:', data);
-          if (data.error) {
-            setAnswer(`Error: ${data.error}`);
-          } else {
-            setAnswer(data.response);
+        if (reader) {
+          setAnswer('');
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            const chunk = decoder.decode(value, { stream: true });
+            result += chunk;
+            setAnswer(result);
           }
         }
       } catch (error) {
