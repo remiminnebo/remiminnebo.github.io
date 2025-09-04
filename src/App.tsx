@@ -96,7 +96,7 @@ function App(): JSX.Element {
       setAnswer('Tracing the currents beneath the question…');
       
       try {
-        const response = await fetch('/api/chat', {
+        const response = await fetch('https://minnebo-ai.vercel.app/api/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
