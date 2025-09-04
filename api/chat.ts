@@ -28,6 +28,7 @@ export default async function handler(req: any, res: any) {
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
+      res.setHeader('Transfer-Encoding', 'chunked');
       
       const sagePrompt = `Transform any response into the voice of an ancient sage.
 
@@ -72,7 +73,7 @@ Always return the transformed, guru-like version of the answer.`;
       
       const decoratedPrompt = Math.random() < 0.5 ? sagePrompt : guidePrompt;
       
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?key=${process.env.GEMINI_API_KEY}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -90,35 +91,15 @@ Always return the transformed, guru-like version of the answer.`;
         return res.status(response.status).end('Error from API');
       }
       
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder();
+      const data = await response.json();
+      const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
       
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n').filter(line => line.trim());
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data: GeminiResponse = JSON.parse(line.slice(6));
-                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (text) {
-                  res.write(text);
-                }
-              } catch (e) {
-                // Skip invalid JSON
-              }
-            }
-          }
-        }
-      } finally {
-        reader.releaseLock();
-        res.end();
+      // Simulate streaming by writing character by character
+      for (let i = 0; i < aiResponse.length; i++) {
+        res.write(aiResponse[i]);
+        await new Promise(resolve => setTimeout(resolve, 20));
       }
+      res.end();
       
     } catch (error) {
       console.error('Error:', error);
