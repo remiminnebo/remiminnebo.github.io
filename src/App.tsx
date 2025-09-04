@@ -2,9 +2,23 @@ import logo from './logo.svg';
 import { useState, useEffect } from 'react';
 
 function App(): JSX.Element {
+  // Add CSS animation for typing dots
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes pulse {
+      0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+  `;
+  if (!document.head.querySelector('style[data-typing]')) {
+    style.setAttribute('data-typing', 'true');
+    document.head.appendChild(style);
+  }
   const [input, setInput] = useState('');
   const [answer, setAnswer] = useState('');
   const [lastQuestion, setLastQuestion] = useState('');
+  const [messages, setMessages] = useState<{question: string, answer: string}[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
 
   const parseMarkdown = (text: string) => {
     return text
@@ -93,7 +107,8 @@ function App(): JSX.Element {
       const userMessage = input;
       setLastQuestion(userMessage);
       setInput('');
-      setAnswer('Tracing the currents beneath the question…');
+      setAnswer('');
+      setIsTyping(true);
       
       try {
         const response = await fetch('https://minnebo-ai.vercel.app/api/chat', {
@@ -108,6 +123,7 @@ function App(): JSX.Element {
         
         if (!response.ok) {
           setAnswer('Connection error. Please try again.');
+          setIsTyping(false);
           return;
         }
         
@@ -116,7 +132,7 @@ function App(): JSX.Element {
         let result = '';
         
         if (reader) {
-          setAnswer('');
+          setIsTyping(false);
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -125,10 +141,14 @@ function App(): JSX.Element {
             result += chunk;
             setAnswer(result);
           }
+          
+          // Add to message history when complete
+          setMessages(prev => [...prev, { question: userMessage, answer: result }]);
         }
       } catch (error) {
         console.error('Fetch error:', error);
         setAnswer('Connection error. Please try again.');
+        setIsTyping(false);
       }
     }
   };
@@ -275,6 +295,109 @@ function App(): JSX.Element {
           </div>
         )}
         
+        {/* Message History */}
+        {messages.length > 0 && (
+          <div style={{
+            maxWidth: isMobile ? '90vw' : '500px',
+            width: '100%',
+            marginBottom: '20px',
+            maxHeight: '300px',
+            overflowY: 'auto'
+          }}>
+            {messages.map((msg, i) => (
+              <div key={i} style={{ marginBottom: '15px' }}>
+                <div style={{
+                  backgroundColor: 'rgba(32,15,59,0.1)',
+                  padding: '10px 15px',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  color: '#200F3B',
+                  marginBottom: '5px'
+                }}>
+                  {msg.question}
+                </div>
+                <div style={{
+                  backgroundColor: 'rgba(255,255,255,0.8)',
+                  padding: '15px',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  lineHeight: '1.5',
+                  color: '#200F3B',
+                  position: 'relative'
+                }}>
+                  {msg.answer}
+                  <button
+                    onClick={() => navigator.clipboard.writeText(msg.answer)}
+                    style={{
+                      position: 'absolute',
+                      top: '10px',
+                      right: '10px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '16px',
+                      opacity: 0.6,
+                      padding: '4px'
+                    }}
+                    title="Copy wisdom"
+                  >
+                    📋
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {/* Typing Indicator */}
+        {isTyping && (
+          <div style={{
+            backgroundColor: 'rgba(255,255,255,0.8)',
+            padding: '20px',
+            borderRadius: '12px',
+            fontSize: '18px',
+            maxWidth: isMobile ? '90vw' : '500px',
+            width: isMobile ? '100%' : 'auto',
+            color: '#200F3B',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
+          }}>
+            The silence gathers before the word is born
+            <div style={{
+              display: 'flex',
+              gap: '3px'
+            }}>
+              <div style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: '#200F3B',
+                animation: 'pulse 1.4s ease-in-out infinite both',
+                animationDelay: '0s'
+              }} />
+              <div style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: '#200F3B',
+                animation: 'pulse 1.4s ease-in-out infinite both',
+                animationDelay: '0.2s'
+              }} />
+              <div style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: '#200F3B',
+                animation: 'pulse 1.4s ease-in-out infinite both',
+                animationDelay: '0.4s'
+              }} />
+            </div>
+          </div>
+        )}
+        
+        {/* Current Answer */}
         {answer && (
           <div 
             style={{
@@ -289,10 +412,29 @@ function App(): JSX.Element {
               fontFamily: 'Tahoma, sans-serif',
               fontWeight: 'normal',
               color: '#200F3B',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              position: 'relative'
             }}
-            dangerouslySetInnerHTML={{ __html: parseMarkdown(answer) }}
-          />
+          >
+            <div dangerouslySetInnerHTML={{ __html: parseMarkdown(answer) }} />
+            <button
+              onClick={() => navigator.clipboard.writeText(answer)}
+              style={{
+                position: 'absolute',
+                top: '15px',
+                right: '15px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '18px',
+                opacity: 0.6,
+                padding: '4px'
+              }}
+              title="Copy wisdom"
+            >
+              📋
+            </button>
+          </div>
         )}
       </div>
       
