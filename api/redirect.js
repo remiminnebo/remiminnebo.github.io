@@ -62,7 +62,7 @@ export default async function handler(req, res) {
       <meta property="og:url" content="https://minnebo.ai${escapeHtml(req.url)}" />
       <meta property="og:type" content="article" />
       <meta property="og:site_name" content="minnebo.ai" />
-      <meta property="og:image" content="${imageUrl}" />
+      <meta property="og:image" content="${escapeHtml(imageUrl)}" />
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
       
@@ -70,7 +70,7 @@ export default async function handler(req, res) {
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content="${escapeHtml(question || 'minnebo.ai - AI Wisdom')}" />
       <meta name="twitter:description" content="${escapeHtml(answer ? answer.substring(0, 200) + (answer.length > 200 ? '...' : '') : 'Discover profound insights and wisdom through AI conversations')}" />
-      <meta name="twitter:image" content="${imageUrl}" />
+      <meta name="twitter:image" content="${escapeHtml(imageUrl)}" />
       
       <script>
         // Load the React app with the shared conversation
