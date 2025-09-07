@@ -8,6 +8,9 @@
     },
     "api/og-image.js": {
       "maxDuration": 10
+    },
+    "api/redirect.js": {
+      "maxDuration": 5
     }
   },
   "routes": [

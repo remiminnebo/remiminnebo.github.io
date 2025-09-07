@@ -90,7 +90,7 @@ function App(): JSX.Element {
       });
       const data = await response.json();
       if (data.id) {
-        return `https://minnebo.ai?share=${data.id}`;
+        return `https://minnebo-ai.vercel.app/api/redirect?share=${data.id}`;
       }
     } catch (error) {
       console.error('Failed to create share link:', error);
@@ -98,7 +98,7 @@ function App(): JSX.Element {
     // Fallback to URL encoding
     const fallbackData = { q: question, a: answer };
     const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(fallbackData))));
-    return `https://minnebo.ai?s=${encoded}`;
+    return `https://minnebo-ai.vercel.app/api/redirect?s=${encoded}`;
   };
 
   const captureScreenshot = async () => {
