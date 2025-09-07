@@ -57,29 +57,10 @@ function App(): JSX.Element {
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [cachedScreenshot, setCachedScreenshot] = useState<string | null>(null);
 
-  const createShareableUrl = async (question: string, answer: string) => {
-    try {
-      console.log('Sending request to /api/share');
-      const response = await fetch('/api/share', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, answer })
-      });
-      
-      console.log('Response status:', response.status);
-      const data = await response.json();
-      console.log('Response data:', data);
-      
-      if (data.id) {
-        return `https://minnebo.ai?share=${data.id}`;
-      } else {
-        console.error('No ID in response');
-        return null;
-      }
-    } catch (error) {
-      console.error('Failed to create share link:', error);
-      return null;
-    }
+  const createShareableUrl = (question: string, answer: string) => {
+    const data = { q: question, a: answer };
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+    return `https://minnebo.ai?s=${encoded}`;
   };
 
   const captureScreenshot = async () => {
@@ -139,19 +120,20 @@ function App(): JSX.Element {
     const urlParams = new URLSearchParams(window.location.search);
     const shareId = urlParams.get('share');
     
-    if (shareId) {
-      fetch(`/api/share?id=${shareId}`)
-        .then(response => response.json())
-        .then(data => {
-          if (data.question && data.answer) {
-            setLastQuestion(data.question);
-            setAnswer(data.answer);
-            setIsAnswerComplete(true);
-            // Clean URL
-            window.history.replaceState({}, document.title, window.location.pathname);
-          }
-        })
-        .catch(error => console.error('Failed to load shared conversation:', error));
+    const encoded = urlParams.get('s');
+    if (encoded) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+        if (decoded.q && decoded.a) {
+          setLastQuestion(decoded.q);
+          setAnswer(decoded.a);
+          setIsAnswerComplete(true);
+          // Clean URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      } catch (error) {
+        console.error('Failed to decode shared conversation:', error);
+      }
     }
   }, []);
 
@@ -688,24 +670,12 @@ function App(): JSX.Element {
               zIndex: 100
             }}>
               <button
-                onClick={async () => {
-                  try {
-                    console.log('Creating share URL...');
-                    const shareUrl = await createShareableUrl(lastQuestion, answer);
-                    console.log('Share URL:', shareUrl);
-                    
-                    if (shareUrl) {
-                      await navigator.clipboard.writeText(shareUrl);
-                      setFlashMessageText('The link flows\ninto your vessel.');
-                      setShowFlashMessage(true);
-                      setTimeout(() => setShowFlashMessage(false), 2000);
-                    } else {
-                      alert('Failed to create share link');
-                    }
-                  } catch (error) {
-                    console.error('Share error:', error);
-                    alert('Error creating share link');
-                  }
+                onClick={() => {
+                  const shareUrl = createShareableUrl(lastQuestion, answer);
+                  navigator.clipboard.writeText(shareUrl);
+                  setFlashMessageText('The link flows\ninto your vessel.');
+                  setShowFlashMessage(true);
+                  setTimeout(() => setShowFlashMessage(false), 2000);
                   setShowShareMenu(false);
                 }}
                 style={{
