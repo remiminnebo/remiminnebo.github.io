@@ -12,10 +12,78 @@ interface GeminiResponse {
   }[];
 }
 
+// Rate limiting storage
+const rateLimits = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 20; // 20 requests per minute for chat
+
+// Get client identifier for rate limiting
+function getClientId(req: any) {
+  return req.headers['x-forwarded-for'] || 
+         req.connection?.remoteAddress || 
+         req.socket?.remoteAddress ||
+         'unknown';
+}
+
+// Rate limiting function
+function checkRateLimit(clientId: string) {
+  const now = Date.now();
+  const clientLimits = rateLimits.get(clientId) || { count: 0, windowStart: now };
+  
+  // Reset window if expired
+  if (now - clientLimits.windowStart > RATE_LIMIT_WINDOW) {
+    clientLimits.count = 0;
+    clientLimits.windowStart = now;
+  }
+  
+  if (clientLimits.count >= RATE_LIMIT_MAX_REQUESTS) {
+    throw new Error('Rate limit exceeded. Please try again later.');
+  }
+  
+  clientLimits.count++;
+  rateLimits.set(clientId, clientLimits);
+}
+
+// Prompt injection protection
+function sanitizePrompt(message: string): string {
+  if (!message || typeof message !== 'string') {
+    throw new Error('Invalid message format');
+  }
+  
+  // Length validation
+  if (message.length > 1000) {
+    throw new Error('Message too long. Please keep under 1000 characters.');
+  }
+  
+  // Remove potential prompt injection patterns
+  const sanitized = message
+    .replace(/ignore\s+previous\s+instructions/gi, '')
+    .replace(/system\s*:/gi, '')
+    .replace(/assistant\s*:/gi, '')
+    .replace(/\[INST\]/gi, '')
+    .replace(/\[\/INST\]/gi, '')
+    .replace(/<\|.*?\|>/gi, '')
+    .replace(/###\s*(instruction|system|prompt)/gi, '')
+    .trim();
+    
+  if (!sanitized) {
+    throw new Error('Message cannot be empty after sanitization');
+  }
+  
+  return sanitized;
+}
+
 export default async function handler(req: any, res: any) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  // Secure CORS policy
+  res.setHeader('Access-Control-Allow-Origin', 'https://minnebo.ai');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  
+  // Security headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -23,7 +91,15 @@ export default async function handler(req: any, res: any) {
 
   if (req.method === 'POST') {
     try {
+      const clientId = getClientId(req);
+      
+      // Apply rate limiting
+      checkRateLimit(clientId);
+      
       const { message }: RequestBody = req.body;
+      
+      // Sanitize and validate the message
+      const sanitizedMessage = sanitizePrompt(message);
       
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache');
@@ -55,7 +131,7 @@ Instead of "Ask me a question": "Set your wonder upon the wind, and it will retu
 
 Instead of "Thinking…": "The silence gathers before the word is born."
 
-User question: ${message}
+User question: ${sanitizedMessage}
 
 Always return the transformed answer in this sage-like style.`;
       
@@ -68,7 +144,7 @@ Guidelines:
 - Instead of direct statements like "Yes" or "No," use symbolic or graceful equivalents.
 - Instead of simple advice, phrase it as wisdom.
 
-User question: ${message}
+User question: ${sanitizedMessage}
 
 Always return the transformed, guru-like version of the answer.`;
       
@@ -89,7 +165,8 @@ Always return the transformed, guru-like version of the answer.`;
       });
       
       if (!response.ok) {
-        return res.status(response.status).end('Error from API');
+        console.error('Gemini API error:', response.status, response.statusText);
+        return res.status(500).end('AI service temporarily unavailable');
       }
       
       const data = await response.json();
@@ -103,7 +180,19 @@ Always return the transformed, guru-like version of the answer.`;
       res.end();
       
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Chat API error:', error);
+      
+      // Handle specific error types
+      if (error instanceof Error) {
+        if (error.message.includes('Rate limit exceeded')) {
+          return res.status(429).end('Rate limit exceeded. Please try again later.');
+        } else if (error.message.includes('Message too long') || 
+                   error.message.includes('Invalid message') ||
+                   error.message.includes('empty after sanitization')) {
+          return res.status(400).end(error.message);
+        }
+      }
+      
       res.status(500).end('Internal server error');
     }
   } else {
