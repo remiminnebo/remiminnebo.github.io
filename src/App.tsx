@@ -142,12 +142,16 @@ function App(): JSX.Element {
       meta.setAttribute('content', content);
     };
     
+    const imageUrl = `https://minnebo-ai.vercel.app/api/og-image?question=${encodeURIComponent(question)}&answer=${encodeURIComponent(answer)}`;
+    
     updateMeta('og:title', question);
     updateMeta('og:description', answer.substring(0, 200) + (answer.length > 200 ? '...' : ''));
     updateMeta('og:url', window.location.href);
     updateMeta('og:type', 'article');
     updateMeta('og:site_name', 'minnebo.ai');
-    updateMeta('og:image', 'https://minnebo.ai/favicon.svg');
+    updateMeta('og:image', imageUrl);
+    updateMeta('og:image:width', '1200');
+    updateMeta('og:image:height', '630');
   };
 
   useEffect(() => {
