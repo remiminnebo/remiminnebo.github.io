@@ -57,9 +57,23 @@ function App(): JSX.Element {
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [cachedScreenshot, setCachedScreenshot] = useState<string | null>(null);
 
-  const createShareableUrl = (question: string, answer: string) => {
-    const data = { q: question, a: answer };
-    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+  const createShareableUrl = async (question: string, answer: string) => {
+    try {
+      const response = await fetch('https://minnebo-ai.vercel.app/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, answer })
+      });
+      const data = await response.json();
+      if (data.id) {
+        return `https://minnebo.ai?share=${data.id}`;
+      }
+    } catch (error) {
+      console.error('Failed to create share link:', error);
+    }
+    // Fallback to URL encoding
+    const fallbackData = { q: question, a: answer };
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(fallbackData))));
     return `https://minnebo.ai?s=${encoded}`;
   };
 
@@ -120,15 +134,30 @@ function App(): JSX.Element {
     const urlParams = new URLSearchParams(window.location.search);
     const shareId = urlParams.get('share');
     
+    const shareId = urlParams.get('share');
     const encoded = urlParams.get('s');
-    if (encoded) {
+    
+    if (shareId) {
+      // Try to fetch from API
+      fetch(`https://minnebo-ai.vercel.app/api/share?id=${shareId}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.question && data.answer) {
+            setLastQuestion(data.question);
+            setAnswer(data.answer);
+            setIsAnswerComplete(true);
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        })
+        .catch(error => console.error('Failed to load shared conversation:', error));
+    } else if (encoded) {
+      // Fallback to URL encoding
       try {
         const decoded = JSON.parse(decodeURIComponent(escape(atob(encoded))));
         if (decoded.q && decoded.a) {
           setLastQuestion(decoded.q);
           setAnswer(decoded.a);
           setIsAnswerComplete(true);
-          // Clean URL
           window.history.replaceState({}, document.title, window.location.pathname);
         }
       } catch (error) {
@@ -670,8 +699,8 @@ function App(): JSX.Element {
               zIndex: 100
             }}>
               <button
-                onClick={() => {
-                  const shareUrl = createShareableUrl(lastQuestion, answer);
+                onClick={async () => {
+                  const shareUrl = await createShareableUrl(lastQuestion, answer);
                   navigator.clipboard.writeText(shareUrl);
                   setFlashMessageText('The link flows\ninto your vessel.');
                   setShowFlashMessage(true);
