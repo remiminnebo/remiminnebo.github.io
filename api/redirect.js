@@ -31,7 +31,7 @@ export default async function handler(req, res) {
           answer = data.answer || '';
         }
       } catch (error) {
-        console.error('Failed to fetch conversation:', error);
+        console.error('Failed to fetch conversation - error type:', error instanceof Error ? error.constructor.name : typeof error);
       }
     }
   }
@@ -59,7 +59,7 @@ export default async function handler(req, res) {
       <!-- Open Graph meta tags -->
       <meta property="og:title" content="${escapeHtml(question || 'minnebo.ai - AI Wisdom')}" />
       <meta property="og:description" content="${escapeHtml(answer ? answer.substring(0, 200) + (answer.length > 200 ? '...' : '') : 'Discover profound insights and wisdom through AI conversations')}" />
-      <meta property="og:url" content="https://minnebo.ai${escapeHtml(req.url)}" />
+      <meta property="og:url" content="https://minnebo.ai/api/redirect${share && uuidRegex.test(share) ? `?share=${escapeHtml(share)}` : ''}" />
       <meta property="og:type" content="article" />
       <meta property="og:site_name" content="minnebo.ai" />
       <meta property="og:image" content="${escapeHtml(imageUrl)}" />

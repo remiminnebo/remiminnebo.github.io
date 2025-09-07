@@ -34,7 +34,7 @@ function sanitizeHtml(text) {
     .trim();
 }
 
-// Input validation and sanitization
+// Input validation and sanitization with Unicode protection
 function validateAndSanitizeInput(question, answer) {
   if (!question || !answer) {
     throw new Error('Question and answer are required');
@@ -44,17 +44,43 @@ function validateAndSanitizeInput(question, answer) {
     throw new Error('Question and answer must be strings');
   }
   
-  if (question.length > MAX_QUESTION_LENGTH) {
+  // Normalize Unicode
+  const normalizedQuestion = question.normalize('NFKC');
+  const normalizedAnswer = answer.normalize('NFKC');
+  
+  // Multi-layer validation for question
+  const qCharLength = normalizedQuestion.length;
+  const qByteLength = new TextEncoder().encode(normalizedQuestion).length;
+  const qVisualLength = normalizedQuestion.replace(/[\u200b-\u200f\u2028-\u202f\u205f-\u206f\ufeff]/g, '').length;
+  
+  if (qCharLength > MAX_QUESTION_LENGTH) {
     throw new Error(`Question must be less than ${MAX_QUESTION_LENGTH} characters`);
   }
-  
-  if (answer.length > MAX_ANSWER_LENGTH) {
-    throw new Error(`Answer must be less than ${MAX_ANSWER_LENGTH} characters`);
+  if (qByteLength > MAX_QUESTION_LENGTH * 4) {
+    throw new Error('Question data too large');
+  }
+  if (qVisualLength < 1) {
+    throw new Error('Question cannot be empty or invisible');
   }
   
-  // Sanitize input (defense in depth)
-  const sanitizedQuestion = sanitizeHtml(question.trim());
-  const sanitizedAnswer = sanitizeHtml(answer.trim());
+  // Multi-layer validation for answer
+  const aCharLength = normalizedAnswer.length;
+  const aByteLength = new TextEncoder().encode(normalizedAnswer).length;
+  const aVisualLength = normalizedAnswer.replace(/[\u200b-\u200f\u2028-\u202f\u205f-\u206f\ufeff]/g, '').length;
+  
+  if (aCharLength > MAX_ANSWER_LENGTH) {
+    throw new Error(`Answer must be less than ${MAX_ANSWER_LENGTH} characters`);
+  }
+  if (aByteLength > MAX_ANSWER_LENGTH * 4) {
+    throw new Error('Answer data too large');
+  }
+  if (aVisualLength < 1) {
+    throw new Error('Answer cannot be empty or invisible');
+  }
+  
+  // Sanitize input (defense in depth) using normalized versions
+  const sanitizedQuestion = sanitizeHtml(normalizedQuestion.trim());
+  const sanitizedAnswer = sanitizeHtml(normalizedAnswer.trim());
   
   if (!sanitizedQuestion || !sanitizedAnswer) {
     throw new Error('Question and answer cannot be empty after sanitization');
@@ -92,14 +118,21 @@ function createSignature(data) {
 
 function verifySignature(data, signature) {
   const expectedSignature = createSignature(data);
-  // Use timing-safe comparison
+  
+  // Timing-safe comparison without early returns
   let result = 0;
-  if (signature.length !== expectedSignature.length) {
-    return false;
+  const maxLength = Math.max(signature.length, expectedSignature.length);
+  
+  // Always compare the same number of characters to prevent timing attacks
+  for (let i = 0; i < maxLength; i++) {
+    const sigChar = i < signature.length ? signature.charCodeAt(i) : 0;
+    const expectedChar = i < expectedSignature.length ? expectedSignature.charCodeAt(i) : 0;
+    result |= sigChar ^ expectedChar;
   }
-  for (let i = 0; i < signature.length; i++) {
-    result |= signature.charCodeAt(i) ^ expectedSignature.charCodeAt(i);
-  }
+  
+  // Also XOR the length difference to prevent length-based timing attacks
+  result |= signature.length ^ expectedSignature.length;
+  
   return result === 0;
 }
 
@@ -189,21 +222,25 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: 'Conversation not found' });
       }
       
-      // Verify signature to ensure data hasn't been tampered with
+      // Atomic operation: copy data and validate without modifying original
       const { signature, ...data } = conversation;
+      const now = Date.now();
       
-      if (!verifySignature(data, signature)) {
-        // Remove tampered data
-        shares.delete(id);
-        return res.status(400).json({ error: 'Invalid or tampered conversation' });
-      }
-      
-      // Check if conversation has expired
-      if (Date.now() - data.timestamp > MAX_AGE) {
+      // Check expiration first (before signature verification)
+      if (now - data.timestamp > MAX_AGE) {
+        // Atomically remove expired conversation
         shares.delete(id);
         return res.status(404).json({ error: 'Conversation has expired' });
       }
       
+      // Verify signature
+      if (!verifySignature(data, signature)) {
+        // Atomically remove tampered conversation
+        shares.delete(id);
+        return res.status(400).json({ error: 'Invalid or tampered conversation' });
+      }
+      
+      // Return validated data (no race condition possible here)
       res.status(200).json(data);
       
     } else {
@@ -211,7 +248,8 @@ export default async function handler(req, res) {
     }
     
   } catch (error) {
-    console.error('Secure store error:', error);
+    // Safe logging - only log error type and message category
+    console.error('Secure store error type:', error instanceof Error ? error.constructor.name : typeof error);
     
     if (error.message.includes('Rate limit exceeded')) {
       res.status(429).json({ error: error.message });
@@ -223,7 +261,8 @@ export default async function handler(req, res) {
                error.message.includes('after sanitization')) {
       res.status(400).json({ error: error.message });
     } else {
-      console.error('Unexpected error in secure-store:', error);
+      // Safe logging - no sensitive data in logs
+      console.error('Unexpected secure-store error type:', error instanceof Error ? error.constructor.name : typeof error);
       res.status(500).json({ error: 'Internal server error' });
     }
   }

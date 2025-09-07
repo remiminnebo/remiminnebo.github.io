@@ -39,7 +39,7 @@ export default async function handler(req, res) {
           validatedAnswer = data.answer || '';
         }
       } catch (error) {
-        console.error('Failed to validate content:', error);
+        console.error('Failed to validate content - error type:', error instanceof Error ? error.constructor.name : typeof error);
       }
     }
   } else {

@@ -12,10 +12,24 @@ interface GeminiResponse {
   }[];
 }
 
-// Rate limiting storage
+// Rate limiting storage with cleanup
 const rateLimits = new Map();
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
 const RATE_LIMIT_MAX_REQUESTS = 20; // 20 requests per minute for chat
+const CLEANUP_INTERVAL = 3600000; // 1 hour cleanup
+
+// Cleanup old rate limit entries
+function cleanupRateLimits() {
+  const now = Date.now();
+  for (const [clientId, limits] of rateLimits.entries()) {
+    if (now - limits.windowStart > RATE_LIMIT_WINDOW) {
+      rateLimits.delete(clientId);
+    }
+  }
+}
+
+// Start cleanup interval
+setInterval(cleanupRateLimits, CLEANUP_INTERVAL);
 
 // Get client identifier for rate limiting
 function getClientId(req: any) {
@@ -44,19 +58,34 @@ function checkRateLimit(clientId: string) {
   rateLimits.set(clientId, clientLimits);
 }
 
-// Prompt injection protection
+// Prompt injection protection with Unicode-safe validation
 function sanitizePrompt(message: string): string {
   if (!message || typeof message !== 'string') {
     throw new Error('Invalid message format');
   }
   
-  // Length validation
-  if (message.length > 1000) {
+  // Normalize Unicode to prevent bypasses
+  const normalized = message.normalize('NFKC');
+  
+  // Multi-layer length validation
+  const charLength = normalized.length;
+  const byteLength = new TextEncoder().encode(normalized).length;
+  const visualLength = normalized.replace(/[\u200b-\u200f\u2028-\u202f\u205f-\u206f\ufeff]/g, '').length;
+  
+  if (charLength > 1000) {
     throw new Error('Message too long. Please keep under 1000 characters.');
   }
   
-  // Remove potential prompt injection patterns
-  const sanitized = message
+  if (byteLength > 4000) {
+    throw new Error('Message too large. Please reduce content size.');
+  }
+  
+  if (visualLength < 1) {
+    throw new Error('Message cannot be empty or invisible.');
+  }
+  
+  // Remove potential prompt injection patterns from normalized text
+  const sanitized = normalized
     .replace(/ignore\s+previous\s+instructions/gi, '')
     .replace(/system\s*:/gi, '')
     .replace(/assistant\s*:/gi, '')
@@ -165,22 +194,20 @@ Always return the transformed, guru-like version of the answer.`;
       });
       
       if (!response.ok) {
-        console.error('Gemini API error:', response.status, response.statusText);
+        // Safe logging - no sensitive data
+        console.error('Gemini API error - Status:', response.status);
         return res.status(500).end('AI service temporarily unavailable');
       }
       
       const data = await response.json();
       const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
       
-      // Simulate streaming by writing character by character
-      for (let i = 0; i < aiResponse.length; i++) {
-        res.write(aiResponse[i]);
-        await new Promise(resolve => setTimeout(resolve, 20));
-      }
-      res.end();
+      // Send complete response immediately (no artificial streaming delay)
+      res.end(aiResponse);
       
     } catch (error) {
-      console.error('Chat API error:', error);
+      // Safe logging - only log error type, not full error object
+      console.error('Chat API error type:', error instanceof Error ? error.constructor.name : typeof error);
       
       // Handle specific error types
       if (error instanceof Error) {
