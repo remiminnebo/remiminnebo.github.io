@@ -756,13 +756,33 @@ function App(): JSX.Element {
             }}>
               <button
                 onClick={async () => {
+                  console.log('Share button clicked, window width:', window.innerWidth);
                   const shareUrl = await createShareableUrl(lastQuestion, answer);
+                  console.log('Share URL created:', shareUrl);
                   
                   if (window.innerWidth < 768) {
                     // WhatsApp share for mobile
                     const text = `${lastQuestion}\n\n${answer}\n\nCheck out: ${shareUrl}`;
-                    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
-                    window.open(whatsappUrl, '_blank');
+                    console.log('Sharing to WhatsApp:', text);
+                    
+                    // Try multiple approaches
+                    if (navigator.share) {
+                      try {
+                        await navigator.share({
+                          title: 'Wisdom from minnebo.ai',
+                          text: text
+                        });
+                        console.log('Native share successful');
+                      } catch (error) {
+                        console.log('Native share failed, trying WhatsApp URL');
+                        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                        window.location.href = whatsappUrl;
+                      }
+                    } else {
+                      console.log('No native share, using WhatsApp URL');
+                      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                      window.location.href = whatsappUrl;
+                    }
                   } else {
                     // Copy to clipboard for desktop
                     if (navigator.clipboard && navigator.clipboard.writeText) {
