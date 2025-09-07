@@ -1,16 +1,12 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/**/*.{js,ts}",
-      "use": "@vercel/node"
-    }
-  ],
   "functions": {
     "api/chat.ts": {
       "maxDuration": 30
     },
     "api/share.js": {
+      "maxDuration": 10
+    },
+    "api/og-image.js": {
       "maxDuration": 10
     }
   }
