@@ -20,7 +20,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "echo 'API only - no build needed'",
+    "build": "mkdir -p build && echo '<html><body>API only</body></html>' > build/index.html",
     "build:react": "react-scripts build",
     "predeploy": "npm run build:react",
     "deploy": "gh-pages -d build",
