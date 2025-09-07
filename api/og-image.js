@@ -43,9 +43,9 @@ export default async function handler(req, res) {
       }
     }
   } else {
-    // Fallback: heavily sanitize direct parameters (but prefer using ID)
-    validatedQuestion = sanitizeForSvg(question);
-    validatedAnswer = sanitizeForSvg(answer);
+    // No fallback - require ID validation for security
+    validatedQuestion = '';
+    validatedAnswer = '';
   }
 
   const questionText = validatedQuestion ? (validatedQuestion.length > 60 ? validatedQuestion.substring(0, 60) + '...' : validatedQuestion) : '';
