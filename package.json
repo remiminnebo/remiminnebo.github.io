@@ -20,11 +20,11 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
-    "predeploy": "npm run build",
+    "build": "echo 'API only - no build needed'",
+    "build:react": "react-scripts build",
+    "predeploy": "npm run build:react",
     "deploy": "gh-pages -d build",
-    "deploy:ci": "REACT_APP_GEMINI_API_KEY=$REACT_APP_GEMINI_API_KEY npm run build && gh-pages -d build",
-    "vercel-build": "echo 'API only'"
+    "deploy:ci": "REACT_APP_GEMINI_API_KEY=$REACT_APP_GEMINI_API_KEY npm run build:react && gh-pages -d build"
   },
   "browserslist": {
     "production": [
