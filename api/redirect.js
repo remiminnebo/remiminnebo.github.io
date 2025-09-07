@@ -11,8 +11,29 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, (m) => map[m]);
 }
 
+// Validate Host header to prevent DNS rebinding
+function validateHost(req) {
+  const host = req.headers.host;
+  const allowedHosts = ['minnebo.ai', 'www.minnebo.ai', 'minnebo-ai.vercel.app'];
+  
+  if (!host || !allowedHosts.includes(host.toLowerCase())) {
+    return false;
+  }
+  return true;
+}
+
 export default async function handler(req, res) {
-  const { share } = req.query;
+  // Validate Host header first
+  if (!validateHost(req)) {
+    return res.status(400).end('Invalid host header');
+  }
+  
+  // Prevent parameter pollution
+  let share = req.query.share;
+  
+  if (Array.isArray(share)) {
+    share = share[0]; // Take first value if array
+  }
   
   let question = '';
   let answer = '';

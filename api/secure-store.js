@@ -4,10 +4,14 @@ import { createHmac, randomUUID } from 'crypto';
 const shares = new Map();
 const rateLimits = new Map();
 
-// Environment validation
+// Environment validation - require 64+ char key for 256-bit entropy
 const SECRET_KEY = process.env.SHARE_SECRET;
-if (!SECRET_KEY || SECRET_KEY.length < 32) {
-  throw new Error('SHARE_SECRET must be set and at least 32 characters long');
+if (!SECRET_KEY || SECRET_KEY.length < 64) {
+  throw new Error('SHARE_SECRET must be set and at least 64 characters long for cryptographic security');
+}
+// Validate key entropy - ReDoS-safe pattern check (limited backtracking)
+if (/(.{4,8})\1/.test(SECRET_KEY.substring(0, 128))) {
+  throw new Error('SHARE_SECRET contains repeated patterns - use cryptographically random key');
 }
 
 // Security constants
@@ -54,7 +58,7 @@ function validateAndSanitizeInput(question, answer) {
   const qVisualLength = normalizedQuestion.replace(/[\u200b-\u200f\u2028-\u202f\u205f-\u206f\ufeff]/g, '').length;
   
   if (qCharLength > MAX_QUESTION_LENGTH) {
-    throw new Error(`Question must be less than ${MAX_QUESTION_LENGTH} characters`);
+    throw new Error('Question exceeds maximum allowed length');
   }
   if (qByteLength > MAX_QUESTION_LENGTH * 4) {
     throw new Error('Question data too large');
@@ -69,7 +73,7 @@ function validateAndSanitizeInput(question, answer) {
   const aVisualLength = normalizedAnswer.replace(/[\u200b-\u200f\u2028-\u202f\u205f-\u206f\ufeff]/g, '').length;
   
   if (aCharLength > MAX_ANSWER_LENGTH) {
-    throw new Error(`Answer must be less than ${MAX_ANSWER_LENGTH} characters`);
+    throw new Error('Answer exceeds maximum allowed length');
   }
   if (aByteLength > MAX_ANSWER_LENGTH * 4) {
     throw new Error('Answer data too large');
@@ -108,12 +112,11 @@ function checkRateLimit(clientId) {
   rateLimits.set(clientId, clientLimits);
 }
 
-// HMAC signature functions
+// HMAC signature functions with full 256-bit security
 function createSignature(data) {
   return createHmac('sha256', SECRET_KEY)
     .update(JSON.stringify(data))
-    .digest('hex')
-    .substring(0, 32);
+    .digest('hex'); // Full 64-character hex = 256-bit security
 }
 
 function verifySignature(data, signature) {
@@ -164,7 +167,38 @@ function getClientId(req) {
          'unknown';
 }
 
+// Safe object destructuring to prevent prototype pollution
+function safeExtract(obj, allowedKeys) {
+  if (!obj || typeof obj !== 'object' || obj.constructor !== Object) {
+    return {};
+  }
+  
+  const result = {};
+  for (const key of allowedKeys) {
+    if (typeof key === 'string' && key !== '__proto__' && key !== 'constructor' && key !== 'prototype' && obj.hasOwnProperty(key)) {
+      result[key] = obj[key];
+    }
+  }
+  return result;
+}
+
+// Validate Host header to prevent DNS rebinding
+function validateHost(req) {
+  const host = req.headers.host;
+  const allowedHosts = ['minnebo.ai', 'www.minnebo.ai', 'minnebo-ai.vercel.app'];
+  
+  if (!host || !allowedHosts.includes(host.toLowerCase())) {
+    return false;
+  }
+  return true;
+}
+
 export default async function handler(req, res) {
+  // Validate Host header first
+  if (!validateHost(req)) {
+    return res.status(400).json({ error: 'Invalid host header' });
+  }
+  
   // Security headers
   res.setHeader('Access-Control-Allow-Origin', 'https://minnebo.ai');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -186,7 +220,8 @@ export default async function handler(req, res) {
       // Rate limiting
       checkRateLimit(clientId);
       
-      const { question, answer } = req.body;
+      // Safe extraction prevents prototype pollution
+      const { question, answer } = safeExtract(req.body, ['question', 'answer']);
       
       // Validate and sanitize input
       const sanitized = validateAndSanitizeInput(question, answer);
@@ -210,37 +245,46 @@ export default async function handler(req, res) {
       res.status(200).json({ id });
       
     } else if (req.method === 'GET') {
-      const { id } = req.query;
+      // Prevent parameter pollution - only accept single string values
+      let id = req.query.id;
+      
+      // Reject arrays and non-string values
+      if (Array.isArray(id)) {
+        return res.status(400).json({ error: 'Invalid ID format - arrays not allowed' });
+      }
       
       if (!id || typeof id !== 'string') {
         return res.status(400).json({ error: 'Valid ID is required' });
       }
       
+      // Additional sanitization - remove any query fragments
+      id = id.split('&')[0].split('#')[0].trim();
+      
+      // ATOMIC READ-CHECK-DELETE: Prevent TOCTOU race conditions
       const conversation = shares.get(id);
       
       if (!conversation) {
         return res.status(404).json({ error: 'Conversation not found' });
       }
       
-      // Atomic operation: copy data and validate without modifying original
+      // Atomic operation: all validations BEFORE any modifications
       const { signature, ...data } = conversation;
       const now = Date.now();
+      const isExpired = now - data.timestamp > MAX_AGE;
+      const isValidSignature = verifySignature(data, signature);
       
-      // Check expiration first (before signature verification)
-      if (now - data.timestamp > MAX_AGE) {
-        // Atomically remove expired conversation
+      // SINGLE atomic delete decision based on all checks
+      if (isExpired || !isValidSignature) {
         shares.delete(id);
-        return res.status(404).json({ error: 'Conversation has expired' });
+        
+        if (isExpired) {
+          return res.status(404).json({ error: 'Conversation has expired' });
+        } else {
+          return res.status(400).json({ error: 'Invalid or tampered conversation' });
+        }
       }
       
-      // Verify signature
-      if (!verifySignature(data, signature)) {
-        // Atomically remove tampered conversation
-        shares.delete(id);
-        return res.status(400).json({ error: 'Invalid or tampered conversation' });
-      }
-      
-      // Return validated data (no race condition possible here)
+      // Only return data if ALL validations passed
       res.status(200).json(data);
       
     } else {

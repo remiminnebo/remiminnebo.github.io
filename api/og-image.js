@@ -16,13 +16,37 @@ function sanitizeForSvg(text) {
     .trim();
 }
 
+// Validate Host header to prevent DNS rebinding
+function validateHost(req) {
+  const host = req.headers.host;
+  const allowedHosts = ['minnebo.ai', 'www.minnebo.ai', 'minnebo-ai.vercel.app'];
+  
+  if (!host || !allowedHosts.includes(host.toLowerCase())) {
+    return false;
+  }
+  return true;
+}
+
 export default async function handler(req, res) {
+  // Validate Host header first
+  if (!validateHost(req)) {
+    return res.status(400).end('Invalid host header');
+  }
+  
   res.setHeader('Access-Control-Allow-Origin', 'https://minnebo.ai');
   res.setHeader('Content-Type', 'image/svg+xml');
   res.setHeader('Cache-Control', 'public, max-age=3600'); // Shorter cache for security
   res.setHeader('X-Content-Type-Options', 'nosniff');
 
-  const { question = '', answer = '', id = '' } = req.query;
+  // Prevent parameter pollution - extract single values only
+  let question = req.query.question || '';
+  let answer = req.query.answer || '';
+  let id = req.query.id || '';
+  
+  // Handle arrays by taking first value
+  if (Array.isArray(question)) question = question[0] || '';
+  if (Array.isArray(answer)) answer = answer[0] || '';
+  if (Array.isArray(id)) id = id[0] || '';
   
   let validatedQuestion = '';
   let validatedAnswer = '';

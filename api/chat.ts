@@ -84,15 +84,15 @@ function sanitizePrompt(message: string): string {
     throw new Error('Message cannot be empty or invisible.');
   }
   
-  // Remove potential prompt injection patterns from normalized text
+  // Remove potential prompt injection patterns - ReDoS-safe regex
   const sanitized = normalized
-    .replace(/ignore\s+previous\s+instructions/gi, '')
-    .replace(/system\s*:/gi, '')
-    .replace(/assistant\s*:/gi, '')
+    .replace(/ignore[\s]{1,5}previous[\s]{1,5}instructions/gi, '') // Limit quantifier to prevent backtracking
+    .replace(/system[\s]{0,3}:/gi, '')
+    .replace(/assistant[\s]{0,3}:/gi, '')
     .replace(/\[INST\]/gi, '')
     .replace(/\[\/INST\]/gi, '')
-    .replace(/<\|.*?\|>/gi, '')
-    .replace(/###\s*(instruction|system|prompt)/gi, '')
+    .replace(/<\|[^|]{0,50}\|>/gi, '') // Limit length to prevent ReDoS
+    .replace(/###[\s]{0,3}(instruction|system|prompt)/gi, '')
     .trim();
     
   if (!sanitized) {
@@ -102,7 +102,23 @@ function sanitizePrompt(message: string): string {
   return sanitized;
 }
 
+// Validate Host header to prevent DNS rebinding
+function validateHost(req: any): boolean {
+  const host = req.headers.host;
+  const allowedHosts = ['minnebo.ai', 'www.minnebo.ai', 'minnebo-ai.vercel.app'];
+  
+  if (!host || !allowedHosts.includes(host.toLowerCase())) {
+    return false;
+  }
+  return true;
+}
+
 export default async function handler(req: any, res: any) {
+  // Validate Host header first
+  if (!validateHost(req)) {
+    return res.status(400).end('Invalid host header');
+  }
+  
   // Secure CORS policy
   res.setHeader('Access-Control-Allow-Origin', 'https://minnebo.ai');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -125,7 +141,19 @@ export default async function handler(req: any, res: any) {
       // Apply rate limiting
       checkRateLimit(clientId);
       
-      const { message }: RequestBody = req.body;
+      // Safe extraction to prevent prototype pollution
+      const body = req.body;
+      if (!body || typeof body !== 'object' || body.constructor !== Object) {
+        throw new Error('Invalid request body format');
+      }
+      
+      const message = body.hasOwnProperty('message') && 
+                      body.message !== undefined && 
+                      typeof body.message === 'string' ? body.message : '';
+      
+      if (!message) {
+        throw new Error('Message field is required');
+      }
       
       // Sanitize and validate the message
       const sanitizedMessage = sanitizePrompt(message);
