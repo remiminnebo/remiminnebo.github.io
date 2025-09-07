@@ -59,13 +59,23 @@ function App(): JSX.Element {
 
   const createShareableUrl = async (question: string, answer: string) => {
     try {
+      console.log('Sending request to /api/share');
       const response = await fetch('/api/share', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, answer })
       });
-      const { id } = await response.json();
-      return `https://minnebo.ai?share=${id}`;
+      
+      console.log('Response status:', response.status);
+      const data = await response.json();
+      console.log('Response data:', data);
+      
+      if (data.id) {
+        return `https://minnebo.ai?share=${data.id}`;
+      } else {
+        console.error('No ID in response');
+        return null;
+      }
     } catch (error) {
       console.error('Failed to create share link:', error);
       return null;
@@ -679,12 +689,22 @@ function App(): JSX.Element {
             }}>
               <button
                 onClick={async () => {
-                  const shareUrl = await createShareableUrl(lastQuestion, answer);
-                  if (shareUrl) {
-                    navigator.clipboard.writeText(shareUrl);
-                    setFlashMessageText('The link flows\ninto your vessel.');
-                    setShowFlashMessage(true);
-                    setTimeout(() => setShowFlashMessage(false), 2000);
+                  try {
+                    console.log('Creating share URL...');
+                    const shareUrl = await createShareableUrl(lastQuestion, answer);
+                    console.log('Share URL:', shareUrl);
+                    
+                    if (shareUrl) {
+                      await navigator.clipboard.writeText(shareUrl);
+                      setFlashMessageText('The link flows\ninto your vessel.');
+                      setShowFlashMessage(true);
+                      setTimeout(() => setShowFlashMessage(false), 2000);
+                    } else {
+                      alert('Failed to create share link');
+                    }
+                  } catch (error) {
+                    console.error('Share error:', error);
+                    alert('Error creating share link');
                   }
                   setShowShareMenu(false);
                 }}
