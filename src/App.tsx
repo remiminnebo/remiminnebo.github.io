@@ -56,6 +56,8 @@ function App(): JSX.Element {
   const [flashMessageText, setFlashMessageText] = useState('');
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [cachedScreenshot, setCachedScreenshot] = useState<string | null>(null);
+  const [challenge, setChallenge] = useState<{challengeId: string, question: string} | null>(null);
+  const [challengeAnswer, setChallengeAnswer] = useState('');
 
   const fallbackCopyTextToClipboard = (text: string) => {
     const textArea = document.createElement('textarea');
@@ -310,17 +312,41 @@ function App(): JSX.Element {
       setIsAnswerComplete(false);
       
       try {
+        const requestBody: any = { message: userMessage };
+        
+        // Include challenge data if we have it
+        if (challenge && challengeAnswer) {
+          requestBody.challengeId = challenge.challengeId;
+          requestBody.challengeAnswer = challengeAnswer;
+        }
+        
         const response = await fetch('https://minnebo-ai.vercel.app/api/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            message: userMessage
-          })
+          body: JSON.stringify(requestBody)
         });
         
         if (!response.ok) {
+          // Handle challenge response
+          if (response.status === 429) {
+            try {
+              const errorData = await response.json();
+              if (errorData.challenge) {
+                setChallenge({
+                  challengeId: errorData.challenge.challengeId,
+                  question: errorData.challenge.question
+                });
+                setAnswer('');
+                setIsTyping(false);
+                return;
+              }
+            } catch (e) {
+              // Fallback for non-JSON responses
+            }
+          }
+          
           setAnswer('Connection error. Please try again.');
           setIsTyping(false);
           return;
@@ -333,6 +359,10 @@ function App(): JSX.Element {
         if (reader) {
           setIsTyping(false);
           setIsAnswerComplete(false);
+          // Clear challenge on successful response
+          setChallenge(null);
+          setChallengeAnswer('');
+          
           while (true) {
             const { done, value } = await reader.read();
             if (done) {
@@ -600,6 +630,61 @@ function App(): JSX.Element {
         {!isMobile && (
           <div style={{ marginBottom: '20px', width: '100%', display: 'flex', justifyContent: 'center' }}>
             {chatInput}
+          </div>
+        )}
+        
+        {/* Challenge UI */}
+        {challenge && (
+          <div style={{
+            backgroundColor: 'rgba(255, 200, 100, 0.9)',
+            padding: '20px',
+            borderRadius: '12px',
+            fontSize: '18px',
+            maxWidth: isMobile ? '90vw' : '500px',
+            width: isMobile ? '100%' : 'auto',
+            color: '#8B4513',
+            marginBottom: '20px',
+            border: '2px solid #FF8C00'
+          }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>
+              Security Check Required
+            </div>
+            <div style={{ marginBottom: '15px' }}>
+              Please solve: {challenge.question} = ?
+            </div>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <input
+                type="number"
+                value={challengeAnswer}
+                onChange={(e) => setChallengeAnswer(e.target.value)}
+                placeholder="Answer"
+                style={{
+                  padding: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid #DDD',
+                  fontSize: '16px',
+                  width: '80px'
+                }}
+              />
+              <button
+                onClick={() => {
+                  if (challengeAnswer) {
+                    handleSend(); // Retry with challenge answer
+                  }
+                }}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#FF8C00',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Submit
+              </button>
+            </div>
           </div>
         )}
         

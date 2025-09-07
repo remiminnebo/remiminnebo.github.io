@@ -1,5 +1,10 @@
+import { isTorExitNode, extractRealIP, generateRequestFingerprint, detectTorBrowser } from './tor-detector.js';
+import { checkGlobalRateLimit, checkFingerprintRateLimit, requestChallenge, verifyChallenge, hasValidBypass } from './challenge-limiter.js';
+
 interface RequestBody {
   message: string;
+  challengeId?: string;
+  challengeAnswer?: string;
 }
 
 interface GeminiResponse {
@@ -102,6 +107,28 @@ function sanitizePrompt(message: string): string {
   return sanitized;
 }
 
+// Calculate Shannon entropy to detect bot/automated messages
+function calculateEntropy(text: string): number {
+  if (!text || text.length === 0) return 0;
+  
+  const freq: { [char: string]: number } = {};
+  const len = text.length;
+  
+  // Count character frequencies
+  for (const char of text) {
+    freq[char] = (freq[char] || 0) + 1;
+  }
+  
+  // Calculate entropy
+  let entropy = 0;
+  for (const count of Object.values(freq)) {
+    const p = count / len;
+    entropy -= p * Math.log2(p);
+  }
+  
+  return entropy;
+}
+
 // Validate Host header to prevent DNS rebinding
 function validateHost(req: any): boolean {
   const host = req.headers.host;
@@ -111,6 +138,22 @@ function validateHost(req: any): boolean {
     return false;
   }
   return true;
+}
+
+// Advanced security checks
+function performSecurityChecks(req: any) {
+  const realIP = extractRealIP(req);
+  const fingerprint = generateRequestFingerprint(req);
+  const torDetection = detectTorBrowser(req);
+  const isTor = isTorExitNode(realIP);
+  
+  return {
+    realIP,
+    fingerprint,
+    isTorExit: isTor,
+    torBrowserScore: torDetection.score,
+    suspiciousPatterns: isTor || torDetection.score >= 3
+  };
 }
 
 export default async function handler(req: any, res: any) {
@@ -136,15 +179,52 @@ export default async function handler(req: any, res: any) {
 
   if (req.method === 'POST') {
     try {
-      const clientId = getClientId(req);
+      // Comprehensive security analysis
+      const security = performSecurityChecks(req);
       
-      // Apply rate limiting
-      checkRateLimit(clientId);
+      // Check global rate limits first
+      const globalCheck = checkGlobalRateLimit();
+      if (!globalCheck.allowed) {
+        return res.status(429).end(`Service overloaded. Retry in ${Math.ceil(globalCheck.resetIn / 1000)}s`);
+      }
+      
+      // More restrictive for suspicious traffic
+      const limit = security.suspiciousPatterns ? 2 : 5; // Reduce limit for suspicious patterns
+      
+      // Check fingerprint-based rate limiting
+      const fingerprintCheck = checkFingerprintRateLimit(security.fingerprint);
+      if (!fingerprintCheck.allowed) {
+        // Check if user has valid bypass from solved challenge
+        if (!hasValidBypass(security.fingerprint)) {
+          if (fingerprintCheck.needsChallenge) {
+            const challenge = requestChallenge(security.fingerprint);
+            return res.status(429).json({
+              error: 'Rate limit exceeded. Solve challenge to continue.',
+              challenge: challenge,
+              retryAfter: Math.ceil(fingerprintCheck.resetIn / 1000)
+            });
+          } else {
+            return res.status(429).end(`Rate limit exceeded. Retry in ${Math.ceil(fingerprintCheck.resetIn / 1000)}s`);
+          }
+        }
+      }
       
       // Safe extraction to prevent prototype pollution
       const body = req.body;
       if (!body || typeof body !== 'object' || body.constructor !== Object) {
         throw new Error('Invalid request body format');
+      }
+      
+      // Handle challenge verification if provided
+      if (body.challengeId && body.challengeAnswer) {
+        const challengeResult = verifyChallenge(body.challengeId, body.challengeAnswer, security.fingerprint);
+        if (!challengeResult.valid) {
+          return res.status(400).json({ 
+            error: challengeResult.error,
+            attemptsLeft: challengeResult.attemptsLeft
+          });
+        }
+        // Challenge solved, continue with normal processing
       }
       
       const message = body.hasOwnProperty('message') && 
@@ -153,6 +233,18 @@ export default async function handler(req: any, res: any) {
       
       if (!message) {
         throw new Error('Message field is required');
+      }
+      
+      // Entropy-based bot detection
+      const messageEntropy = calculateEntropy(message);
+      const isLowEntropy = messageEntropy < 2.0; // Very repetitive text
+      const isHighEntropy = messageEntropy > 4.5; // Random gibberish
+      
+      if (isLowEntropy || isHighEntropy) {
+        console.log(`Suspicious message entropy: ${messageEntropy} from ${security.realIP}`);
+        if (security.suspiciousPatterns) {
+          return res.status(400).end('Message content appears automated or invalid');
+        }
       }
       
       // Sanitize and validate the message

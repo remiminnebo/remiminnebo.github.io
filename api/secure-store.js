@@ -1,4 +1,6 @@
 import { createHmac, randomUUID } from 'crypto';
+import { isTorExitNode, extractRealIP, generateRequestFingerprint, detectTorBrowser } from './tor-detector.js';
+import { checkGlobalRateLimit, checkFingerprintRateLimit, requestChallenge, verifyChallenge, hasValidBypass } from './challenge-limiter.js';
 
 // Secure in-memory storage with cleanup
 const shares = new Map();
@@ -159,12 +161,20 @@ function cleanup() {
 // Start cleanup interval
 setInterval(cleanup, CLEANUP_INTERVAL);
 
-// Get client identifier for rate limiting
-function getClientId(req) {
-  return req.headers['x-forwarded-for'] || 
-         req.connection?.remoteAddress || 
-         req.socket?.remoteAddress ||
-         'unknown';
+// Advanced security checks
+function performSecurityChecks(req) {
+  const realIP = extractRealIP(req);
+  const fingerprint = generateRequestFingerprint(req);
+  const torDetection = detectTorBrowser(req);
+  const isTor = isTorExitNode(realIP);
+  
+  return {
+    realIP,
+    fingerprint,
+    isTorExit: isTor,
+    torBrowserScore: torDetection.score,
+    suspiciousPatterns: isTor || torDetection.score >= 3
+  };
 }
 
 // Safe object destructuring to prevent prototype pollution
@@ -214,14 +224,62 @@ export default async function handler(req, res) {
   }
 
   try {
-    const clientId = getClientId(req);
+    // Comprehensive security analysis
+    const security = performSecurityChecks(req);
     
     if (req.method === 'POST') {
-      // Rate limiting
-      checkRateLimit(clientId);
+      // Block known Tor exit nodes for POST requests
+      if (security.isTorExit) {
+        console.log(`Blocked Tor exit node: ${security.realIP}`);
+        return res.status(403).json({ error: 'Access denied: Anonymous networks not allowed for content creation' });
+      }
+      
+      // Check global rate limits first
+      const globalCheck = checkGlobalRateLimit();
+      if (!globalCheck.allowed) {
+        return res.status(429).json({ 
+          error: 'Service overloaded. Please try again later.',
+          retryAfter: Math.ceil(globalCheck.resetIn / 1000)
+        });
+      }
+      
+      // Check fingerprint-based rate limiting
+      const fingerprintCheck = checkFingerprintRateLimit(security.fingerprint);
+      if (!fingerprintCheck.allowed) {
+        // Check if user has valid bypass from solved challenge
+        if (!hasValidBypass(security.fingerprint)) {
+          if (fingerprintCheck.needsChallenge) {
+            const challenge = requestChallenge(security.fingerprint);
+            return res.status(429).json({
+              error: 'Rate limit exceeded. Solve challenge to continue.',
+              challenge: challenge,
+              retryAfter: Math.ceil(fingerprintCheck.resetIn / 1000)
+            });
+          } else {
+            return res.status(429).json({
+              error: 'Rate limit exceeded. Too many failed challenges.',
+              retryAfter: Math.ceil(fingerprintCheck.resetIn / 1000)
+            });
+          }
+        }
+      }
       
       // Safe extraction prevents prototype pollution
-      const { question, answer } = safeExtract(req.body, ['question', 'answer']);
+      const bodyData = safeExtract(req.body, ['question', 'answer', 'challengeId', 'challengeAnswer']);
+      
+      // Handle challenge verification if provided
+      if (bodyData.challengeId && bodyData.challengeAnswer) {
+        const challengeResult = verifyChallenge(bodyData.challengeId, bodyData.challengeAnswer, security.fingerprint);
+        if (!challengeResult.valid) {
+          return res.status(400).json({ 
+            error: challengeResult.error,
+            attemptsLeft: challengeResult.attemptsLeft
+          });
+        }
+        // Challenge solved, continue with normal processing
+      }
+      
+      const { question, answer } = bodyData;
       
       // Validate and sanitize input
       const sanitized = validateAndSanitizeInput(question, answer);
