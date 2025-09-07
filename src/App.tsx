@@ -56,7 +56,6 @@ function App(): JSX.Element {
   const [flashMessageText, setFlashMessageText] = useState('');
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [cachedScreenshot, setCachedScreenshot] = useState<string | null>(null);
-  const [validResponses, setValidResponses] = useState<Set<string>>(new Set());
 
   const fallbackCopyTextToClipboard = (text: string) => {
     const textArea = document.createElement('textarea');
@@ -84,17 +83,24 @@ function App(): JSX.Element {
 
   const createShareableUrl = async (question: string, answer: string) => {
     try {
-      const response = await fetch('https://minnebo-ai.vercel.app/api/store', {
+      const response = await fetch('https://minnebo-ai.vercel.app/api/secure-store', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, answer })
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create share link');
+      }
+      
       const data = await response.json();
       if (data.id) {
         return `https://minnebo.ai/?share=${data.id}`;
       }
     } catch (error) {
       console.error('Failed to create share link:', error);
+      throw error;
     }
     return null;
   };
@@ -183,19 +189,31 @@ function App(): JSX.Element {
     const encoded = urlParams.get('s');
     
     if (shareId) {
-      // Try to fetch from persistent storage
-      fetch(`https://minnebo-ai.vercel.app/api/store?id=${shareId}`)
-        .then(response => response.json())
-        .then(data => {
-          if (data.question && data.answer) {
-            setLastQuestion(data.question);
-            setAnswer(data.answer);
-            setIsAnswerComplete(true);
-            updateMetaTags(data.question, data.answer);
-            window.history.replaceState({}, document.title, window.location.pathname);
-          }
-        })
-        .catch(error => console.error('Failed to load shared conversation:', error));
+      // Validate UUID format before making request
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(shareId)) {
+        // Try to fetch from secure storage
+        fetch(`https://minnebo-ai.vercel.app/api/secure-store?id=${shareId}`)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('Failed to load conversation');
+            }
+            return response.json();
+          })
+          .then(data => {
+            if (data.question && data.answer) {
+              setLastQuestion(data.question);
+              setAnswer(data.answer);
+              setIsAnswerComplete(true);
+              updateMetaTags(data.question, data.answer);
+              window.history.replaceState({}, document.title, window.location.pathname);
+            }
+          })
+          .catch(error => {
+            console.error('Failed to load shared conversation:', error);
+            // Don't show error to user, just fail silently
+          });
+      }
     }
 
   }, []);
@@ -303,8 +321,6 @@ function App(): JSX.Element {
             const chunk = decoder.decode(value, { stream: true });
             result += chunk;
             setAnswer(result);
-            // Mark this response as valid for sharing
-            setValidResponses(prev => new Set(prev).add(result));
           }
         }
       } catch (error) {
@@ -743,63 +759,75 @@ function App(): JSX.Element {
             }}>
               <button
                 onClick={async () => {
-                  // Only allow sharing of AI-generated responses
-                  if (!validResponses.has(answer)) {
-                    alert('The winds of truth cannot be tampered with.');
-                    setShowShareMenu(false);
-                    return;
-                  }
-                  
-                  console.log('Share button clicked, window width:', window.innerWidth);
-                  const shareUrl = await createShareableUrl(lastQuestion, answer);
-                  
-                  if (!shareUrl) {
-                    alert('Failed to create share link. Please try again.');
-                    setShowShareMenu(false);
-                    return;
-                  }
-                  console.log('Share URL created:', shareUrl);
-                  
-                  if (window.innerWidth < 768) {
-                    // WhatsApp share for mobile
-                    const text = `${lastQuestion}\n\n${answer}\n\nCheck out: ${shareUrl}`;
-                    console.log('Sharing to WhatsApp:', text);
+                  try {
+                    console.log('Share button clicked, window width:', window.innerWidth);
+                    const shareUrl = await createShareableUrl(lastQuestion, answer);
                     
-                    // Try multiple approaches
-                    if (navigator.share) {
-                      try {
-                        await navigator.share({
-                          title: 'Wisdom from minnebo.ai',
-                          text: text
-                        });
-                        console.log('Native share successful');
-                      } catch (error) {
-                        console.log('Native share failed, trying WhatsApp URL');
+                    if (!shareUrl) {
+                      setFlashMessageText('The path to sharing\nremains clouded.');
+                      setShowFlashMessage(true);
+                      setTimeout(() => setShowFlashMessage(false), 2000);
+                      setShowShareMenu(false);
+                      return;
+                    }
+                    console.log('Share URL created:', shareUrl);
+                    
+                    if (window.innerWidth < 768) {
+                      // WhatsApp share for mobile
+                      const text = `${lastQuestion}\n\n${answer}\n\nCheck out: ${shareUrl}`;
+                      console.log('Sharing to WhatsApp:', text);
+                      
+                      // Try multiple approaches
+                      if (navigator.share) {
+                        try {
+                          await navigator.share({
+                            title: 'Wisdom from minnebo.ai',
+                            text: text
+                          });
+                          console.log('Native share successful');
+                        } catch (error) {
+                          console.log('Native share failed, trying WhatsApp URL');
+                          const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                          window.location.href = whatsappUrl;
+                        }
+                      } else {
+                        console.log('No native share, using WhatsApp URL');
                         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
                         window.location.href = whatsappUrl;
                       }
                     } else {
-                      console.log('No native share, using WhatsApp URL');
-                      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
-                      window.location.href = whatsappUrl;
-                    }
-                  } else {
-                    // Copy to clipboard for desktop
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                      try {
-                        await navigator.clipboard.writeText(shareUrl);
-                        setFlashMessageText('The link flows\ninto your vessel.');
-                        setShowFlashMessage(true);
-                        setTimeout(() => setShowFlashMessage(false), 2000);
-                      } catch (error) {
+                      // Copy to clipboard for desktop
+                      if (navigator.clipboard && navigator.clipboard.writeText) {
+                        try {
+                          await navigator.clipboard.writeText(shareUrl);
+                          setFlashMessageText('The link flows\ninto your vessel.');
+                          setShowFlashMessage(true);
+                          setTimeout(() => setShowFlashMessage(false), 2000);
+                        } catch (error) {
+                          fallbackCopyTextToClipboard(shareUrl);
+                        }
+                      } else {
                         fallbackCopyTextToClipboard(shareUrl);
                       }
-                    } else {
-                      fallbackCopyTextToClipboard(shareUrl);
                     }
+                    
+                    setShowShareMenu(false);
+                  } catch (error) {
+                    console.error('Share error:', error);
+                    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                    
+                    if (errorMessage.includes('Rate limit')) {
+                      setFlashMessageText('The flow slows.\nPatience brings clarity.');
+                    } else if (errorMessage.includes('too long') || errorMessage.includes('required')) {
+                      setFlashMessageText('The message seeks\nits proper form.');
+                    } else {
+                      setFlashMessageText('The path to sharing\nremains clouded.');
+                    }
+                    
+                    setShowFlashMessage(true);
+                    setTimeout(() => setShowFlashMessage(false), 2000);
+                    setShowShareMenu(false);
                   }
-                  
-                  setShowShareMenu(false);
                 }}
                 style={{
                   background: 'none',

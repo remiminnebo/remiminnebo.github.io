@@ -1,38 +1,61 @@
+// HTML escape function to prevent XSS
+function escapeHtml(text) {
+  if (!text) return '';
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
+}
+
 export default async function handler(req, res) {
   const { share } = req.query;
   
   let question = '';
   let answer = '';
   
-  if (share) {
-    // Fetch from secure store API
-    try {
-      const response = await fetch(`https://minnebo-ai.vercel.app/api/store?id=${share}`);
-      if (response.ok) {
-        const data = await response.json();
-        question = data.question || '';
-        answer = data.answer || '';
+  if (share && typeof share === 'string') {
+    // Validate share ID format (UUID)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(share)) {
+      // Fetch from secure store API
+      try {
+        const response = await fetch(`https://minnebo-ai.vercel.app/api/secure-store?id=${share}`);
+        if (response.ok) {
+          const data = await response.json();
+          question = data.question || '';
+          answer = data.answer || '';
+        }
+      } catch (error) {
+        console.error('Failed to fetch conversation:', error);
       }
-    } catch (error) {
-      console.error('Failed to fetch conversation:', error);
     }
   }
   
   const imageUrl = `https://minnebo-ai.vercel.app/api/og-image?question=${encodeURIComponent(question)}&answer=${encodeURIComponent(answer)}`;
   
+  // Set security headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Content-Security-Policy', "default-src 'self' https:; script-src 'unsafe-inline' https:; style-src 'unsafe-inline' https:; img-src 'self' https: data:;");
+
   const html = `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <title>${question ? `${question} - minnebo.ai` : 'MINNEBO'}</title>
+      <title>${escapeHtml(question ? `${question} - minnebo.ai` : 'MINNEBO')}</title>
       <link rel="icon" type="image/svg+xml" href="https://minnebo.ai/favicon.svg" />
       
       <!-- Open Graph meta tags -->
-      <meta property="og:title" content="${question || 'minnebo.ai - AI Wisdom'}" />
-      <meta property="og:description" content="${answer ? answer.substring(0, 200) + (answer.length > 200 ? '...' : '') : 'Discover profound insights and wisdom through AI conversations'}" />
-      <meta property="og:url" content="https://minnebo.ai${req.url}" />
+      <meta property="og:title" content="${escapeHtml(question || 'minnebo.ai - AI Wisdom')}" />
+      <meta property="og:description" content="${escapeHtml(answer ? answer.substring(0, 200) + (answer.length > 200 ? '...' : '') : 'Discover profound insights and wisdom through AI conversations')}" />
+      <meta property="og:url" content="https://minnebo.ai${escapeHtml(req.url)}" />
       <meta property="og:type" content="article" />
       <meta property="og:site_name" content="minnebo.ai" />
       <meta property="og:image" content="${imageUrl}" />
@@ -41,8 +64,8 @@ export default async function handler(req, res) {
       
       <!-- Twitter Card meta tags -->
       <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:title" content="${question || 'minnebo.ai - AI Wisdom'}" />
-      <meta name="twitter:description" content="${answer ? answer.substring(0, 200) + (answer.length > 200 ? '...' : '') : 'Discover profound insights and wisdom through AI conversations'}" />
+      <meta name="twitter:title" content="${escapeHtml(question || 'minnebo.ai - AI Wisdom')}" />
+      <meta name="twitter:description" content="${escapeHtml(answer ? answer.substring(0, 200) + (answer.length > 200 ? '...' : '') : 'Discover profound insights and wisdom through AI conversations')}" />
       <meta name="twitter:image" content="${imageUrl}" />
       
       <script>
