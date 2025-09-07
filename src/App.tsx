@@ -758,7 +758,7 @@ function App(): JSX.Element {
                 onClick={async () => {
                   const shareUrl = await createShareableUrl(lastQuestion, answer);
                   
-                  if (isMobile) {
+                  if (window.innerWidth < 768) {
                     // WhatsApp share for mobile
                     const text = `${lastQuestion}\n\n${answer}\n\nCheck out: ${shareUrl}`;
                     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
@@ -793,7 +793,7 @@ function App(): JSX.Element {
                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.1)'}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
-                {isMobile ? 'Share to WhatsApp' : 'Copy Link'}
+                {window.innerWidth < 768 ? 'Share to WhatsApp' : 'Copy Link'}
               </button>
             </div>
           </div>
