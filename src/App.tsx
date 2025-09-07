@@ -56,6 +56,7 @@ function App(): JSX.Element {
   const [flashMessageText, setFlashMessageText] = useState('');
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [cachedScreenshot, setCachedScreenshot] = useState<string | null>(null);
+  const [validResponses, setValidResponses] = useState<Set<string>>(new Set());
 
   const fallbackCopyTextToClipboard = (text: string) => {
     const textArea = document.createElement('textarea');
@@ -82,23 +83,29 @@ function App(): JSX.Element {
   };
 
   const createShareableUrl = async (question: string, answer: string) => {
+    // Create long URL with encoded data
+    const data = { q: question, a: answer };
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+    const longUrl = `https://minnebo-ai.vercel.app/api/redirect?s=${encoded}`;
+    
+    // Try to shorten it with our own service
     try {
-      const response = await fetch('https://minnebo-ai.vercel.app/api/share', {
+      const response = await fetch('https://minnebo-ai.vercel.app/api/shorten', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, answer })
+        body: JSON.stringify({ longUrl })
       });
-      const data = await response.json();
-      if (data.id) {
-        return `https://minnebo-ai.vercel.app/api/redirect?share=${data.id}`;
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data.shortUrl;
       }
     } catch (error) {
-      console.error('Failed to create share link:', error);
+      console.error('URL shortening failed:', error);
     }
-    // Fallback to URL encoding
-    const fallbackData = { q: question, a: answer };
-    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(fallbackData))));
-    return `https://minnebo-ai.vercel.app/api/redirect?s=${encoded}`;
+    
+    // Fallback to long URL if shortening fails
+    return longUrl;
   };
 
   const captureScreenshot = async () => {
@@ -318,6 +325,8 @@ function App(): JSX.Element {
             const chunk = decoder.decode(value, { stream: true });
             result += chunk;
             setAnswer(result);
+            // Mark this response as valid for sharing
+            setValidResponses(prev => new Set(prev).add(result));
           }
         }
       } catch (error) {
@@ -756,6 +765,13 @@ function App(): JSX.Element {
             }}>
               <button
                 onClick={async () => {
+                  // Only allow sharing of AI-generated responses
+                  if (!validResponses.has(answer)) {
+                    alert('This response cannot be shared.');
+                    setShowShareMenu(false);
+                    return;
+                  }
+                  
                   console.log('Share button clicked, window width:', window.innerWidth);
                   const shareUrl = await createShareableUrl(lastQuestion, answer);
                   console.log('Share URL created:', shareUrl);
