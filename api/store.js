@@ -1,7 +1,6 @@
-import { promises as fs } from 'fs';
 import { createHmac } from 'crypto';
 
-const STORAGE_FILE = '/tmp/shares.json';
+const shares = new Map();
 const SECRET_KEY = process.env.SHARE_SECRET;
 
 function createSignature(data) {
@@ -10,23 +9,6 @@ function createSignature(data) {
 
 function verifySignature(data, signature) {
   return createSignature(data) === signature;
-}
-
-async function loadShares() {
-  try {
-    const data = await fs.readFile(STORAGE_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    return {};
-  }
-}
-
-async function saveShares(shares) {
-  try {
-    await fs.writeFile(STORAGE_FILE, JSON.stringify(shares));
-  } catch (error) {
-    console.error('Failed to save shares:', error);
-  }
 }
 
 export default async function handler(req, res) {
@@ -42,15 +24,12 @@ export default async function handler(req, res) {
     const signature = createSignature(data);
     const id = Math.random().toString(36).substring(2, 15);
     
-    const shares = await loadShares();
-    shares[id] = { ...data, signature };
-    await saveShares(shares);
+    shares.set(id, { ...data, signature });
     
     res.status(200).json({ id });
   } else if (req.method === 'GET') {
     const { id } = req.query;
-    const shares = await loadShares();
-    const conversation = shares[id];
+    const conversation = shares.get(id);
     
     if (conversation) {
       // Verify signature to prevent tampering
