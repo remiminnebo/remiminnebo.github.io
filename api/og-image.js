@@ -51,24 +51,11 @@ export default async function handler(req, res) {
   const questionText = validatedQuestion ? (validatedQuestion.length > 60 ? validatedQuestion.substring(0, 60) + '...' : validatedQuestion) : '';
   const answerText = validatedAnswer ? (validatedAnswer.length > 100 ? validatedAnswer.substring(0, 100) + '...' : validatedAnswer) : '';
 
-  // Fetch the actual logo
-  let logoSvg = '';
-  try {
-    const logoResponse = await fetch('https://minnebo.ai/logo.svg');
-    if (logoResponse.ok) {
-      logoSvg = await logoResponse.text();
-      // Extract the SVG content and scale it
-      const logoContent = logoSvg.replace(/<svg[^>]*>/, '').replace(/<\/svg>/, '');
-      logoSvg = `<g transform="translate(450, 50) scale(0.3)">${logoContent}</g>`;
-    }
-  } catch (error) {
-    console.error('Failed to fetch logo:', error);
-    // Fallback to text
-    logoSvg = `
-      <rect x="450" y="80" width="300" height="120" rx="20" fill="white" fill-opacity="0.9" />
-      <text x="600" y="150" font-family="Arial, sans-serif" font-size="36" font-weight="bold" text-anchor="middle" fill="#310080">MINNEBO</text>
-    `;
-  }
+  // Use static, safe logo instead of fetching external content
+  const logoSvg = `
+    <rect x="450" y="80" width="300" height="120" rx="20" fill="white" fill-opacity="0.9" />
+    <text x="600" y="150" font-family="Arial, sans-serif" font-size="36" font-weight="bold" text-anchor="middle" fill="#310080">MINNEBO</text>
+  `;
 
   const svg = `
     <svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
