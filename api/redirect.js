@@ -55,12 +55,28 @@ export default async function handler(req, res) {
       <meta name="twitter:image" content="${imageUrl}" />
       
       <script>
-        // Redirect to main site after meta tags are loaded
-        window.location.href = 'https://minnebo.ai${req.url}';
+        // Load the React app with the shared conversation
+        window.addEventListener('DOMContentLoaded', function() {
+          const params = new URLSearchParams(window.location.search);
+          const shareId = params.get('share');
+          const encoded = params.get('s');
+          
+          if (shareId || encoded) {
+            // Redirect to the main site with parameters
+            window.location.href = 'https://minnebo.ai/' + window.location.search;
+          } else {
+            window.location.href = 'https://minnebo.ai/';
+          }
+        });
       </script>
     </head>
     <body>
-      <p>Redirecting...</p>
+      <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif; background: linear-gradient(135deg, #03BFF3 0%, #310080 100%); color: white;">
+        <div style="text-align: center;">
+          <h1>Loading wisdom...</h1>
+          <p>Redirecting to minnebo.ai</p>
+        </div>
+      </div>
     </body>
     </html>
   `;
