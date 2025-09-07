@@ -57,6 +57,30 @@ function App(): JSX.Element {
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [cachedScreenshot, setCachedScreenshot] = useState<string | null>(null);
 
+  const fallbackCopyTextToClipboard = (text: string) => {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.top = '0';
+    textArea.style.left = '0';
+    textArea.style.position = 'fixed';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+      document.execCommand('copy');
+      setFlashMessageText('The link flows\ninto your vessel.');
+      setShowFlashMessage(true);
+      setTimeout(() => setShowFlashMessage(false), 2000);
+    } catch (err) {
+      // If all else fails, show the URL
+      prompt('Copy this link:', text);
+    }
+    
+    document.body.removeChild(textArea);
+  };
+
   const createShareableUrl = async (question: string, answer: string) => {
     try {
       const response = await fetch('https://minnebo-ai.vercel.app/api/share', {
@@ -629,10 +653,17 @@ function App(): JSX.Element {
             }}>
               <svg
                 onClick={() => {
-                  navigator.clipboard.writeText(answer);
-                  setFlashMessageText('The wisdom flows\ninto your vessel.');
-                  setShowFlashMessage(true);
-                  setTimeout(() => setShowFlashMessage(false), 2000);
+                  if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(answer).then(() => {
+                      setFlashMessageText('The wisdom flows\ninto your vessel.');
+                      setShowFlashMessage(true);
+                      setTimeout(() => setShowFlashMessage(false), 2000);
+                    }).catch(() => {
+                      fallbackCopyTextToClipboard(answer);
+                    });
+                  } else {
+                    fallbackCopyTextToClipboard(answer);
+                  }
                 }}
                 width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"
                 style={{
@@ -726,10 +757,28 @@ function App(): JSX.Element {
               <button
                 onClick={async () => {
                   const shareUrl = await createShareableUrl(lastQuestion, answer);
-                  navigator.clipboard.writeText(shareUrl);
-                  setFlashMessageText('The link flows\ninto your vessel.');
-                  setShowFlashMessage(true);
-                  setTimeout(() => setShowFlashMessage(false), 2000);
+                  
+                  if (isMobile) {
+                    // WhatsApp share for mobile
+                    const text = `${lastQuestion}\n\n${answer}\n\nCheck out: ${shareUrl}`;
+                    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                    window.open(whatsappUrl, '_blank');
+                  } else {
+                    // Copy to clipboard for desktop
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                      try {
+                        await navigator.clipboard.writeText(shareUrl);
+                        setFlashMessageText('The link flows\ninto your vessel.');
+                        setShowFlashMessage(true);
+                        setTimeout(() => setShowFlashMessage(false), 2000);
+                      } catch (error) {
+                        fallbackCopyTextToClipboard(shareUrl);
+                      }
+                    } else {
+                      fallbackCopyTextToClipboard(shareUrl);
+                    }
+                  }
+                  
                   setShowShareMenu(false);
                 }}
                 style={{
@@ -744,7 +793,7 @@ function App(): JSX.Element {
                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.1)'}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
-                Copy Link
+                {isMobile ? 'Share to WhatsApp' : 'Copy Link'}
               </button>
             </div>
           </div>
