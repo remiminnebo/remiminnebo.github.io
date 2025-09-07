@@ -1,4 +1,11 @@
 {
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/**/*.{js,ts}",
+      "use": "@vercel/node"
+    }
+  ],
   "functions": {
     "api/chat.ts": {
       "maxDuration": 30
