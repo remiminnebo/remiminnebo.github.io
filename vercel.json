@@ -3,16 +3,13 @@
     "api/chat.ts": {
       "maxDuration": 30
     },
-    "api/share.js": {
+    "api/secure-store.js": {
       "maxDuration": 10
     },
     "api/og-image.js": {
       "maxDuration": 10
     },
     "api/redirect.js": {
-      "maxDuration": 5
-    },
-    "api/store.js": {
       "maxDuration": 5
     }
   },
