@@ -191,6 +191,9 @@ export default async function handler(req: any, res: any) {
       // More restrictive for suspicious traffic
       const limit = security.suspiciousPatterns ? 2 : 5; // Reduce limit for suspicious patterns
       
+      // Debug logging
+      console.log(`Request from ${security.realIP}: Tor=${security.isTorExit}, Browser Score=${security.torBrowserScore}, Suspicious=${security.suspiciousPatterns}`);
+      
       // Check fingerprint-based rate limiting
       const fingerprintCheck = checkFingerprintRateLimit(security.fingerprint);
       if (!fingerprintCheck.allowed) {
@@ -235,16 +238,19 @@ export default async function handler(req: any, res: any) {
         throw new Error('Message field is required');
       }
       
-      // Entropy-based bot detection
+      // Entropy-based bot detection (more lenient thresholds)
       const messageEntropy = calculateEntropy(message);
-      const isLowEntropy = messageEntropy < 2.0; // Very repetitive text
-      const isHighEntropy = messageEntropy > 4.5; // Random gibberish
+      const isVeryLowEntropy = messageEntropy < 1.5; // Only catch extremely repetitive
+      const isVeryHighEntropy = messageEntropy > 5.5; // Only catch complete gibberish
       
-      if (isLowEntropy || isHighEntropy) {
-        console.log(`Suspicious message entropy: ${messageEntropy} from ${security.realIP}`);
-        if (security.suspiciousPatterns) {
-          return res.status(400).end('Message content appears automated or invalid');
-        }
+      if ((isVeryLowEntropy || isVeryHighEntropy) && security.suspiciousPatterns) {
+        console.log(`Blocked suspicious message entropy: ${messageEntropy} from ${security.realIP}`);
+        return res.status(400).end('Message content appears automated or invalid');
+      }
+      
+      // Log but don't block for debugging
+      if (isVeryLowEntropy || isVeryHighEntropy) {
+        console.log(`Warning: Suspicious entropy ${messageEntropy} from ${security.realIP} but allowing due to no other suspicious patterns`);
       }
       
       // Sanitize and validate the message
