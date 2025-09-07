@@ -745,7 +745,7 @@ function App(): JSX.Element {
                 onClick={async () => {
                   // Only allow sharing of AI-generated responses
                   if (!validResponses.has(answer)) {
-                    alert('This response cannot be shared.');
+                    alert('The winds of truth cannot be tampered with.');
                     setShowShareMenu(false);
                     return;
                   }
