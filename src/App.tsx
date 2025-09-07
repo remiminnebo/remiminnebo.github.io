@@ -1,8 +1,17 @@
 import logo from './logo.svg';
 import { useState, useEffect } from 'react';
+import html2canvas from 'html2canvas';
+import { WhatsappShareButton, LinkedinShareButton, FacebookShareButton } from 'react-share';
 
 function App(): JSX.Element {
-  // Add CSS animations
+  // Add Google Fonts and CSS animations
+  const fontLink = document.createElement('link');
+  fontLink.href = 'https://fonts.googleapis.com/css2?family=Katibeh&display=swap';
+  fontLink.rel = 'stylesheet';
+  if (!document.head.querySelector('link[href*="Katibeh"]')) {
+    document.head.appendChild(fontLink);
+  }
+  
   const style = document.createElement('style');
   style.textContent = `
     @keyframes pulse {
@@ -27,6 +36,11 @@ function App(): JSX.Element {
       66% { transform: translateX(-0.5px) translateY(1px); }
       100% { transform: translateX(0px) translateY(0px); }
     }
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+      50% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+    }
   `;
   if (!document.head.querySelector('style[data-animations]')) {
     style.setAttribute('data-animations', 'true');
@@ -38,6 +52,55 @@ function App(): JSX.Element {
   const [messages, setMessages] = useState<{question: string, answer: string}[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [isAnswerComplete, setIsAnswerComplete] = useState(false);
+  const [showFlashMessage, setShowFlashMessage] = useState(false);
+  const [flashMessageText, setFlashMessageText] = useState('');
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [cachedScreenshot, setCachedScreenshot] = useState<string | null>(null);
+
+  const createShareableUrl = async (question: string, answer: string) => {
+    try {
+      const response = await fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, answer })
+      });
+      const { id } = await response.json();
+      return `https://minnebo.ai?share=${id}`;
+    } catch (error) {
+      console.error('Failed to create share link:', error);
+      return null;
+    }
+  };
+
+  const captureScreenshot = async () => {
+    try {
+      // Hide share menu for screenshot
+      const wasMenuOpen = showShareMenu;
+      setShowShareMenu(false);
+      
+      // Wait for state update
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const canvas = await html2canvas(document.body, {
+        width: 1080,
+        height: 1080,
+        scale: 1,
+        backgroundColor: '#03BFF3',
+        useCORS: true,
+        allowTaint: true,
+        x: (window.innerWidth - 1080) / 2,
+        y: 0
+      });
+      
+      // Restore menu state
+      setShowShareMenu(wasMenuOpen);
+      
+      return canvas.toDataURL('image/png');
+    } catch (error) {
+      console.error('Screenshot failed:', error);
+      return null;
+    }
+  };
 
   const parseMarkdown = (text: string) => {
     return text
@@ -59,6 +122,27 @@ function App(): JSX.Element {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    // Check for shared message in URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const shareId = urlParams.get('share');
+    
+    if (shareId) {
+      fetch(`/api/share?id=${shareId}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.question && data.answer) {
+            setLastQuestion(data.question);
+            setAnswer(data.answer);
+            setIsAnswerComplete(true);
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        })
+        .catch(error => console.error('Failed to load shared conversation:', error));
+    }
   }, []);
 
   useEffect(() => {
@@ -299,6 +383,71 @@ function App(): JSX.Element {
       fontFamily: 'Tahoma, sans-serif',
       position: 'relative'
     }}>
+      {/* Flash Message */}
+      {showFlashMessage && (
+        <>
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: '#03BFF3',
+            zIndex: 999
+          }} />
+          <div style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            fontSize: '64px',
+            fontWeight: 'bold',
+            fontFamily: 'Katibeh, serif',
+            textAlign: 'center',
+            lineHeight: '1.2',
+            whiteSpace: 'pre-line',
+            zIndex: 1000
+          }}>
+            <div style={{
+              animation: 'fadeInOut 2s ease-in-out, trippy 8s ease-in-out infinite'
+            }}>
+              {flashMessageText.split('').map((char, i) => {
+                const colors = ['#310080', '#40FF00', '#44FF06', '#FF0004', '#FF0095', '#4609A8', '#8DF28F', '#FFFFFF'];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                return <span key={i} style={{ color: randomColor }}>{char}</span>;
+              })}
+            </div>
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              animation: 'fadeInOut 2s ease-in-out, trippy2 6s ease-in-out infinite reverse',
+              opacity: 0.3,
+              mixBlendMode: 'multiply'
+            }}>
+              {flashMessageText.split('').map((char, i) => {
+                const colors = ['#310080', '#40FF00', '#44FF06', '#FF0004', '#FF0095', '#4609A8', '#8DF28F', '#FFFFFF'];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                return <span key={i + 200} style={{ color: randomColor }}>{char}</span>;
+              })}
+            </div>
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              animation: 'fadeInOut 2s ease-in-out, trippy3 10s linear infinite',
+              opacity: 0.2,
+              mixBlendMode: 'screen'
+            }}>
+              {flashMessageText.split('').map((char, i) => {
+                const colors = ['#310080', '#40FF00', '#44FF06', '#FF0004', '#FF0095', '#4609A8', '#8DF28F', '#FFFFFF'];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                return <span key={i + 400} style={{ color: randomColor }}>{char}</span>;
+              })}
+            </div>
+          </div>
+        </>
+      )}
       <div style={{
         flex: 1,
         display: 'flex',
@@ -433,7 +582,12 @@ function App(): JSX.Element {
               gap: '16px'
             }}>
               <svg
-                onClick={() => navigator.clipboard.writeText(answer)}
+                onClick={() => {
+                  navigator.clipboard.writeText(answer);
+                  setFlashMessageText('The wisdom flows\ninto your vessel.');
+                  setShowFlashMessage(true);
+                  setTimeout(() => setShowFlashMessage(false), 2000);
+                }}
                 width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"
                 style={{
                   cursor: 'pointer',
@@ -447,7 +601,11 @@ function App(): JSX.Element {
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
               </svg>
               <svg
-                onClick={() => console.log('Thumbs up')}
+                onClick={() => {
+                  setFlashMessageText('The words arrive in harmony\nwith the moment.');
+                  setShowFlashMessage(true);
+                  setTimeout(() => setShowFlashMessage(false), 2000);
+                }}
                 width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2"
                 style={{
                   cursor: 'pointer',
@@ -460,7 +618,11 @@ function App(): JSX.Element {
                 <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
               </svg>
               <svg
-                onClick={() => console.log('Thumbs down')}
+                onClick={() => {
+                  setFlashMessageText('The words stir turbulence\nwhere stillness was sought.');
+                  setShowFlashMessage(true);
+                  setTimeout(() => setShowFlashMessage(false), 2000);
+                }}
                 width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2"
                 style={{
                   cursor: 'pointer',
@@ -473,7 +635,7 @@ function App(): JSX.Element {
                 <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
               </svg>
               <svg
-                onClick={() => console.log('Share')}
+                onClick={() => setShowShareMenu(!showShareMenu)}
                 width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2"
                 style={{
                   cursor: 'pointer',
@@ -489,6 +651,57 @@ function App(): JSX.Element {
                 <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
                 <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
               </svg>
+            </div>
+          </div>
+        )}
+        
+        {/* Share Menu */}
+        {showShareMenu && answer && (
+          <div style={{
+            position: 'relative',
+            maxWidth: isMobile ? '90vw' : '500px',
+            width: isMobile ? '100%' : 'auto',
+            display: 'flex',
+            justifyContent: 'flex-end'
+          }}>
+            <div style={{
+              position: 'absolute',
+              top: '10px',
+              right: '48px',
+              backgroundColor: 'rgba(255,255,255,0.9)',
+              borderRadius: '8px',
+              padding: '8px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+              zIndex: 100
+            }}>
+              <button
+                onClick={async () => {
+                  const shareUrl = await createShareableUrl(lastQuestion, answer);
+                  if (shareUrl) {
+                    navigator.clipboard.writeText(shareUrl);
+                    setFlashMessageText('The link flows\ninto your vessel.');
+                    setShowFlashMessage(true);
+                    setTimeout(() => setShowFlashMessage(false), 2000);
+                  }
+                  setShowShareMenu(false);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  color: '#200F3B',
+                  borderRadius: '4px'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.1)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                Copy Link
+              </button>
             </div>
           </div>
         )}
