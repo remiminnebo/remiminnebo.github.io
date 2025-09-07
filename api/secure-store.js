@@ -18,6 +18,22 @@ const RATE_LIMIT_MAX_REQUESTS = 10;
 const CLEANUP_INTERVAL = 3600000; // 1 hour
 const MAX_AGE = 86400000; // 24 hours
 
+// Server-side HTML sanitization
+function sanitizeHtml(text) {
+  if (!text || typeof text !== 'string') return '';
+  
+  return text
+    .replace(/[<>&"']/g, (match) => {
+      const entities = { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' };
+      return entities[match] || match;
+    })
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
+    .replace(/javascript:/gi, '') // Remove javascript: protocol
+    .replace(/data:/gi, '') // Remove data: protocol
+    .replace(/vbscript:/gi, '') // Remove vbscript: protocol
+    .trim();
+}
+
 // Input validation and sanitization
 function validateAndSanitizeInput(question, answer) {
   if (!question || !answer) {
@@ -36,12 +52,12 @@ function validateAndSanitizeInput(question, answer) {
     throw new Error(`Answer must be less than ${MAX_ANSWER_LENGTH} characters`);
   }
   
-  // Sanitize input
-  const sanitizedQuestion = question.trim();
-  const sanitizedAnswer = answer.trim();
+  // Sanitize input (defense in depth)
+  const sanitizedQuestion = sanitizeHtml(question.trim());
+  const sanitizedAnswer = sanitizeHtml(answer.trim());
   
   if (!sanitizedQuestion || !sanitizedAnswer) {
-    throw new Error('Question and answer cannot be empty');
+    throw new Error('Question and answer cannot be empty after sanitization');
   }
   
   return { question: sanitizedQuestion, answer: sanitizedAnswer };
@@ -201,9 +217,13 @@ export default async function handler(req, res) {
       res.status(429).json({ error: error.message });
     } else if (error.message.includes('required') || 
                error.message.includes('must be') || 
-               error.message.includes('cannot be')) {
+               error.message.includes('cannot be') ||
+               error.message.includes('characters') ||
+               error.message.includes('strings') ||
+               error.message.includes('after sanitization')) {
       res.status(400).json({ error: error.message });
     } else {
+      console.error('Unexpected error in secure-store:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   }

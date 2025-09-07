@@ -79,8 +79,15 @@ export default async function handler(req, res) {
           const shareId = params.get('share');
           
           if (shareId) {
-            // Redirect to the main site with parameters
-            window.location.href = 'https://minnebo.ai/?share=' + shareId;
+            // Validate UUID format before redirecting
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(shareId)) {
+              // Safely encode the shareId parameter
+              window.location.href = 'https://minnebo.ai/?share=' + encodeURIComponent(shareId);
+            } else {
+              // Invalid share ID, redirect to home
+              window.location.href = 'https://minnebo.ai/';
+            }
           } else {
             window.location.href = 'https://minnebo.ai/';
           }
