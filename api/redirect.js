@@ -1,29 +1,20 @@
 export default async function handler(req, res) {
-  const { share, s } = req.query;
+  const { share } = req.query;
   
   let question = '';
   let answer = '';
   
   if (share) {
-    // Try to fetch from database
+    // Fetch from secure store API
     try {
-      const conversations = new Map(); // This should be persistent storage
-      const conversation = conversations.get(share);
-      if (conversation) {
-        question = conversation.question;
-        answer = conversation.answer;
+      const response = await fetch(`https://minnebo-ai.vercel.app/api/store?id=${share}`);
+      if (response.ok) {
+        const data = await response.json();
+        question = data.question || '';
+        answer = data.answer || '';
       }
     } catch (error) {
       console.error('Failed to fetch conversation:', error);
-    }
-  } else if (s) {
-    // Decode from URL parameter
-    try {
-      const decoded = JSON.parse(decodeURIComponent(escape(atob(s))));
-      question = decoded.q || '';
-      answer = decoded.a || '';
-    } catch (error) {
-      console.error('Failed to decode conversation:', error);
     }
   }
   
@@ -59,11 +50,10 @@ export default async function handler(req, res) {
         window.addEventListener('DOMContentLoaded', function() {
           const params = new URLSearchParams(window.location.search);
           const shareId = params.get('share');
-          const encoded = params.get('s');
           
-          if (shareId || encoded) {
+          if (shareId) {
             // Redirect to the main site with parameters
-            window.location.href = 'https://minnebo.ai/' + window.location.search;
+            window.location.href = 'https://minnebo.ai/?share=' + shareId;
           } else {
             window.location.href = 'https://minnebo.ai/';
           }
