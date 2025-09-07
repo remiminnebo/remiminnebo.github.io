@@ -133,8 +133,6 @@ function App(): JSX.Element {
     // Check for shared message in URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const shareId = urlParams.get('share');
-    
-    const shareId = urlParams.get('share');
     const encoded = urlParams.get('s');
     
     if (shareId) {
