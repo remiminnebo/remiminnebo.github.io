@@ -1,75 +1,88 @@
-export default function handler(req, res) {
+import { createCanvas, loadImage } from 'canvas';
+
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Content-Type', 'text/html');
+  res.setHeader('Content-Type', 'image/png');
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
 
   const { question = '', answer = '' } = req.query;
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body {
-          margin: 0;
-          padding: 40px;
-          width: 1200px;
-          height: 630px;
-          background: linear-gradient(135deg, #03BFF3 0%, #310080 100%);
-          font-family: 'Arial', sans-serif;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          box-sizing: border-box;
-        }
-        .logo {
-          width: 200px;
-          height: 200px;
-          margin-bottom: 30px;
-          background: white;
-          border-radius: 20px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 48px;
-          font-weight: bold;
-          color: #310080;
-        }
-        .question {
-          font-size: 32px;
-          font-weight: bold;
-          color: white;
-          text-align: center;
-          margin-bottom: 20px;
-          max-width: 1000px;
-          text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-        .answer {
-          font-size: 24px;
-          color: rgba(255,255,255,0.9);
-          text-align: center;
-          max-width: 1000px;
-          line-height: 1.4;
-          text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-        }
-        .site {
-          position: absolute;
-          bottom: 30px;
-          right: 40px;
-          font-size: 20px;
-          color: rgba(255,255,255,0.8);
-          font-weight: bold;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="logo">MINNEBO</div>
-      ${question ? `<div class="question">${question}</div>` : ''}
-      ${answer ? `<div class="answer">${answer.substring(0, 150)}${answer.length > 150 ? '...' : ''}</div>` : ''}
-      <div class="site">minnebo.ai</div>
-    </body>
-    </html>
-  `;
+  try {
+    // Create canvas
+    const canvas = createCanvas(1200, 630);
+    const ctx = canvas.getContext('2d');
 
-  res.send(html);
+    // Background gradient
+    const gradient = ctx.createLinearGradient(0, 0, 1200, 630);
+    gradient.addColorStop(0, '#03BFF3');
+    gradient.addColorStop(1, '#310080');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 1200, 630);
+
+    // Load and draw logo
+    try {
+      const logo = await loadImage('https://minnebo.ai/logo.svg');
+      ctx.drawImage(logo, 450, 50, 300, 150);
+    } catch (error) {
+      // Fallback if logo fails to load
+      ctx.fillStyle = 'white';
+      ctx.roundRect(500, 100, 200, 100, 20);
+      ctx.fill();
+      ctx.fillStyle = '#310080';
+      ctx.font = 'bold 32px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('MINNEBO', 600, 160);
+    }
+
+  // Question
+  if (question) {
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 28px Arial';
+    ctx.textAlign = 'center';
+    const questionText = question.length > 80 ? question.substring(0, 80) + '...' : question;
+    ctx.fillText(questionText, 600, 250);
+  }
+
+  // Answer
+  if (answer) {
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.font = '20px Arial';
+    ctx.textAlign = 'center';
+    const answerText = answer.length > 120 ? answer.substring(0, 120) + '...' : answer;
+    
+    // Word wrap for answer
+    const words = answerText.split(' ');
+    let line = '';
+    let y = 300;
+    
+    for (let n = 0; n < words.length; n++) {
+      const testLine = line + words[n] + ' ';
+      const metrics = ctx.measureText(testLine);
+      const testWidth = metrics.width;
+      
+      if (testWidth > 1000 && n > 0) {
+        ctx.fillText(line, 600, y);
+        line = words[n] + ' ';
+        y += 30;
+        if (y > 400) break; // Limit to 3 lines
+      } else {
+        line = testLine;
+      }
+    }
+    ctx.fillText(line, 600, y);
+  }
+
+  // Site name
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  ctx.font = 'bold 18px Arial';
+  ctx.textAlign = 'right';
+  ctx.fillText('minnebo.ai', 1150, 580);
+
+    // Send image
+    const buffer = canvas.toBuffer('image/png');
+    res.send(buffer);
+  } catch (error) {
+    console.error('OG Image generation failed:', error);
+    res.status(500).send('Image generation failed');
+  }
 }
