@@ -196,6 +196,7 @@ function App(): JSX.Element {
           }
         })
         .catch(error => console.error('Failed to load shared conversation:', error));
+    }
 
   }, []);
 
