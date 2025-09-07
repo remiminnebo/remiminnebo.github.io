@@ -84,7 +84,7 @@ function App(): JSX.Element {
 
   const createShareableUrl = async (question: string, answer: string) => {
     try {
-      const response = await fetch('https://minnebo-ai.vercel.app/api/share', {
+      const response = await fetch('https://minnebo-ai.vercel.app/api/store', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, answer })
@@ -186,8 +186,8 @@ function App(): JSX.Element {
     const encoded = urlParams.get('s');
     
     if (shareId) {
-      // Try to fetch from API
-      fetch(`https://minnebo-ai.vercel.app/api/share?id=${shareId}`)
+      // Try to fetch from persistent storage
+      fetch(`https://minnebo-ai.vercel.app/api/store?id=${shareId}`)
         .then(response => response.json())
         .then(data => {
           if (data.question && data.answer) {

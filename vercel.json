@@ -11,6 +11,9 @@
     },
     "api/redirect.js": {
       "maxDuration": 5
+    },
+    "api/store.js": {
+      "maxDuration": 5
     }
   },
   "routes": [
