@@ -57,10 +57,10 @@ export default async function handler(req, res) {
     }
   }
   
-  // Use share ID for OG image to ensure validation
+  // Always use share ID for OG image to ensure validation and security
   const imageUrl = share && uuidRegex.test(share) 
     ? `https://minnebo-ai.vercel.app/api/og-image?id=${share}`
-    : `https://minnebo-ai.vercel.app/api/og-image?question=${encodeURIComponent(question)}&answer=${encodeURIComponent(answer)}`;
+    : `https://minnebo-ai.vercel.app/api/og-image`; // Default image when no valid share
   
   // Set security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -78,20 +78,27 @@ export default async function handler(req, res) {
       <link rel="icon" type="image/svg+xml" href="https://minnebo.ai/favicon.svg" />
       
       <!-- Open Graph meta tags -->
-      <meta property="og:title" content="${escapeHtml(question || 'minnebo.ai - AI Wisdom')}" />
-      <meta property="og:description" content="${escapeHtml(answer ? answer.substring(0, 200) + (answer.length > 200 ? '...' : '') : 'Discover profound insights and wisdom through AI conversations')}" />
-      <meta property="og:url" content="https://minnebo.ai/api/redirect${share && uuidRegex.test(share) ? `?share=${escapeHtml(share)}` : ''}" />
+      <meta property="og:title" content="${escapeHtml(question ? `"${question}"` : 'MINNEBO - AI Wisdom & Ancient Insights')}" />
+      <meta property="og:description" content="${escapeHtml(answer ? 
+        `${answer.substring(0, 160)}${answer.length > 160 ? '...' : ''} | Discover profound wisdom through AI-powered ancient teachings.` : 
+        '🧙‍♂️ Transform your questions into profound wisdom. Experience AI-powered insights inspired by ancient sages, mystics, and philosophers. Ask anything and receive guidance that flows like water through the ages.')}" />
+      <meta property="og:url" content="https://minnebo.ai${share && uuidRegex.test(share) ? `/?share=${escapeHtml(share)}` : ''}" />
       <meta property="og:type" content="article" />
-      <meta property="og:site_name" content="minnebo.ai" />
+      <meta property="og:site_name" content="MINNEBO" />
       <meta property="og:image" content="${escapeHtml(imageUrl)}" />
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
+      <meta property="og:image:alt" content="MINNEBO AI Wisdom - ${escapeHtml(question ? question.substring(0, 50) : 'Ancient wisdom meets modern AI')}" />
       
       <!-- Twitter Card meta tags -->
       <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:title" content="${escapeHtml(question || 'minnebo.ai - AI Wisdom')}" />
-      <meta name="twitter:description" content="${escapeHtml(answer ? answer.substring(0, 200) + (answer.length > 200 ? '...' : '') : 'Discover profound insights and wisdom through AI conversations')}" />
+      <meta name="twitter:site" content="@minnebo_ai" />
+      <meta name="twitter:title" content="${escapeHtml(question ? `"${question}"` : 'MINNEBO - AI Wisdom & Ancient Insights')}" />
+      <meta name="twitter:description" content="${escapeHtml(answer ? 
+        `${answer.substring(0, 140)}${answer.length > 140 ? '...' : ''}` : 
+        '🧙‍♂️ Experience profound AI wisdom inspired by ancient teachings. Ask your deepest questions and receive guidance that transcends time.')}" />
       <meta name="twitter:image" content="${escapeHtml(imageUrl)}" />
+      <meta name="twitter:image:alt" content="MINNEBO AI Wisdom - ${escapeHtml(question ? question.substring(0, 50) : 'Ancient wisdom meets modern AI')}" />
       
       <script>
         // Load the React app with the shared conversation
