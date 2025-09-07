@@ -129,6 +129,27 @@ function App(): JSX.Element {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const updateMetaTags = (question: string, answer: string) => {
+    document.title = `${question} - minnebo.ai`;
+    
+    const updateMeta = (property: string, content: string) => {
+      let meta = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement;
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.setAttribute('property', property);
+        document.head.appendChild(meta);
+      }
+      meta.setAttribute('content', content);
+    };
+    
+    updateMeta('og:title', question);
+    updateMeta('og:description', answer.substring(0, 200) + (answer.length > 200 ? '...' : ''));
+    updateMeta('og:url', window.location.href);
+    updateMeta('og:type', 'article');
+    updateMeta('og:site_name', 'minnebo.ai');
+    updateMeta('og:image', 'https://minnebo.ai/favicon.svg');
+  };
+
   useEffect(() => {
     // Check for shared message in URL parameters
     const urlParams = new URLSearchParams(window.location.search);
@@ -144,6 +165,7 @@ function App(): JSX.Element {
             setLastQuestion(data.question);
             setAnswer(data.answer);
             setIsAnswerComplete(true);
+            updateMetaTags(data.question, data.answer);
             window.history.replaceState({}, document.title, window.location.pathname);
           }
         })
@@ -156,6 +178,7 @@ function App(): JSX.Element {
           setLastQuestion(decoded.q);
           setAnswer(decoded.a);
           setIsAnswerComplete(true);
+          updateMetaTags(decoded.q, decoded.a);
           window.history.replaceState({}, document.title, window.location.pathname);
         }
       } catch (error) {
