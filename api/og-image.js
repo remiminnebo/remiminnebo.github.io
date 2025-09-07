@@ -1,88 +1,47 @@
-import { createCanvas, loadImage } from 'canvas';
-
-export default async function handler(req, res) {
+export default function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Content-Type', 'image/png');
+  res.setHeader('Content-Type', 'image/svg+xml');
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
 
   const { question = '', answer = '' } = req.query;
 
-  try {
-    // Create canvas
-    const canvas = createCanvas(1200, 630);
-    const ctx = canvas.getContext('2d');
+  const questionText = question ? (question.length > 60 ? question.substring(0, 60) + '...' : question) : '';
+  const answerText = answer ? (answer.length > 100 ? answer.substring(0, 100) + '...' : answer) : '';
 
-    // Background gradient
-    const gradient = ctx.createLinearGradient(0, 0, 1200, 630);
-    gradient.addColorStop(0, '#03BFF3');
-    gradient.addColorStop(1, '#310080');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 1200, 630);
-
-    // Load and draw logo
-    try {
-      const logo = await loadImage('https://minnebo.ai/logo.svg');
-      ctx.drawImage(logo, 450, 50, 300, 150);
-    } catch (error) {
-      // Fallback if logo fails to load
-      ctx.fillStyle = 'white';
-      ctx.roundRect(500, 100, 200, 100, 20);
-      ctx.fill();
-      ctx.fillStyle = '#310080';
-      ctx.font = 'bold 32px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('MINNEBO', 600, 160);
-    }
-
-  // Question
-  if (question) {
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 28px Arial';
-    ctx.textAlign = 'center';
-    const questionText = question.length > 80 ? question.substring(0, 80) + '...' : question;
-    ctx.fillText(questionText, 600, 250);
-  }
-
-  // Answer
-  if (answer) {
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.font = '20px Arial';
-    ctx.textAlign = 'center';
-    const answerText = answer.length > 120 ? answer.substring(0, 120) + '...' : answer;
-    
-    // Word wrap for answer
-    const words = answerText.split(' ');
-    let line = '';
-    let y = 300;
-    
-    for (let n = 0; n < words.length; n++) {
-      const testLine = line + words[n] + ' ';
-      const metrics = ctx.measureText(testLine);
-      const testWidth = metrics.width;
+  const svg = `
+    <svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#03BFF3;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#310080;stop-opacity:1" />
+        </linearGradient>
+      </defs>
       
-      if (testWidth > 1000 && n > 0) {
-        ctx.fillText(line, 600, y);
-        line = words[n] + ' ';
-        y += 30;
-        if (y > 400) break; // Limit to 3 lines
-      } else {
-        line = testLine;
-      }
-    }
-    ctx.fillText(line, 600, y);
-  }
+      <!-- Background -->
+      <rect width="1200" height="630" fill="url(#bg)" />
+      
+      <!-- Logo area -->
+      <rect x="450" y="80" width="300" height="120" rx="20" fill="white" fill-opacity="0.9" />
+      <text x="600" y="150" font-family="Arial, sans-serif" font-size="36" font-weight="bold" text-anchor="middle" fill="#310080">MINNEBO</text>
+      
+      ${questionText ? `
+      <!-- Question -->
+      <text x="600" y="280" font-family="Arial, sans-serif" font-size="28" font-weight="bold" text-anchor="middle" fill="white">
+        ${questionText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+      </text>
+      ` : ''}
+      
+      ${answerText ? `
+      <!-- Answer -->
+      <text x="600" y="350" font-family="Arial, sans-serif" font-size="20" text-anchor="middle" fill="rgba(255,255,255,0.9)">
+        ${answerText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+      </text>
+      ` : ''}
+      
+      <!-- Site name -->
+      <text x="1150" y="580" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="end" fill="rgba(255,255,255,0.8)">minnebo.ai</text>
+    </svg>
+  `;
 
-  // Site name
-  ctx.fillStyle = 'rgba(255,255,255,0.8)';
-  ctx.font = 'bold 18px Arial';
-  ctx.textAlign = 'right';
-  ctx.fillText('minnebo.ai', 1150, 580);
-
-    // Send image
-    const buffer = canvas.toBuffer('image/png');
-    res.send(buffer);
-  } catch (error) {
-    console.error('OG Image generation failed:', error);
-    res.status(500).send('Image generation failed');
-  }
+  res.send(svg);
 }
