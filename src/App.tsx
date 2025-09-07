@@ -96,10 +96,7 @@ function App(): JSX.Element {
     } catch (error) {
       console.error('Failed to create share link:', error);
     }
-    // Fallback to URL encoding
-    const fallbackData = { q: question, a: answer };
-    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(fallbackData))));
-    return `https://minnebo.ai/?s=${encoded}`;
+    return null;
   };
 
   const captureScreenshot = async () => {
@@ -199,21 +196,7 @@ function App(): JSX.Element {
           }
         })
         .catch(error => console.error('Failed to load shared conversation:', error));
-    } else if (encoded) {
-      // Fallback to URL encoding
-      try {
-        const decoded = JSON.parse(decodeURIComponent(escape(atob(encoded))));
-        if (decoded.q && decoded.a) {
-          setLastQuestion(decoded.q);
-          setAnswer(decoded.a);
-          setIsAnswerComplete(true);
-          updateMetaTags(decoded.q, decoded.a);
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }
-      } catch (error) {
-        console.error('Failed to decode shared conversation:', error);
-      }
-    }
+
   }, []);
 
   useEffect(() => {
@@ -768,6 +751,12 @@ function App(): JSX.Element {
                   
                   console.log('Share button clicked, window width:', window.innerWidth);
                   const shareUrl = await createShareableUrl(lastQuestion, answer);
+                  
+                  if (!shareUrl) {
+                    alert('Failed to create share link. Please try again.');
+                    setShowShareMenu(false);
+                    return;
+                  }
                   console.log('Share URL created:', shareUrl);
                   
                   if (window.innerWidth < 768) {
