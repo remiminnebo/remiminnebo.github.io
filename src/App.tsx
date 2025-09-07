@@ -37,6 +37,7 @@ function App(): JSX.Element {
   const [lastQuestion, setLastQuestion] = useState('');
   const [messages, setMessages] = useState<{question: string, answer: string}[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [isAnswerComplete, setIsAnswerComplete] = useState(false);
 
   const parseMarkdown = (text: string) => {
     return text
@@ -127,6 +128,7 @@ function App(): JSX.Element {
       setInput('');
       setAnswer('');
       setIsTyping(true);
+      setIsAnswerComplete(false);
       
       try {
         const response = await fetch('https://minnebo-ai.vercel.app/api/chat', {
@@ -151,9 +153,13 @@ function App(): JSX.Element {
         
         if (reader) {
           setIsTyping(false);
+          setIsAnswerComplete(false);
           while (true) {
             const { done, value } = await reader.read();
-            if (done) break;
+            if (done) {
+              setIsAnswerComplete(true);
+              break;
+            }
             
             const chunk = decoder.decode(value, { stream: true });
             result += chunk;
@@ -401,23 +407,90 @@ function App(): JSX.Element {
         )}
         
         {answer && (
-          <div 
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.8)',
-              padding: '20px',
-              borderRadius: '12px',
-              fontSize: '18px',
-              lineHeight: '1.6',
-              maxWidth: isMobile ? '90vw' : '500px',
-              width: isMobile ? '100%' : 'auto',
-              textAlign: 'left',
-              fontFamily: 'Tahoma, sans-serif',
-              fontWeight: 'normal',
-              color: '#200F3B',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-            }}
-            dangerouslySetInnerHTML={{ __html: parseMarkdown(answer) }}
-          />
+          <div style={{ position: 'relative' }}>
+            <div 
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.8)',
+                padding: '20px',
+                borderRadius: '12px',
+                fontSize: '18px',
+                lineHeight: '1.6',
+                maxWidth: isMobile ? '90vw' : '500px',
+                width: isMobile ? '100%' : 'auto',
+                textAlign: 'left',
+                fontFamily: 'Tahoma, sans-serif',
+                fontWeight: 'normal',
+                color: '#200F3B',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              }}
+              dangerouslySetInnerHTML={{ __html: parseMarkdown(answer) }}
+            />
+            <div style={{
+              position: 'absolute',
+              bottom: '-36px',
+              left: '0px',
+              display: isAnswerComplete ? 'flex' : 'none',
+              gap: '16px'
+            }}>
+              <svg
+                onClick={() => navigator.clipboard.writeText(answer)}
+                width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"
+                style={{
+                  cursor: 'pointer',
+                  transition: 'stroke 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.stroke = '#310080'}
+                onMouseLeave={(e) => e.currentTarget.style.stroke = 'white'}
+                title="Copy to clipboard"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <svg
+                onClick={() => console.log('Thumbs up')}
+                width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2"
+                style={{
+                  cursor: 'pointer',
+                  transition: 'stroke 0.2s ease, fill 0.2s ease'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.stroke = '#310080'; e.currentTarget.style.fill = '#310080'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.stroke = 'white'; e.currentTarget.style.fill = 'white'; }}
+                title="Good response"
+              >
+                <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+              </svg>
+              <svg
+                onClick={() => console.log('Thumbs down')}
+                width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2"
+                style={{
+                  cursor: 'pointer',
+                  transition: 'stroke 0.2s ease, fill 0.2s ease'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.stroke = '#310080'; e.currentTarget.style.fill = '#310080'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.stroke = 'white'; e.currentTarget.style.fill = 'white'; }}
+                title="Poor response"
+              >
+                <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
+              </svg>
+              <svg
+                onClick={() => console.log('Share')}
+                width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2"
+                style={{
+                  cursor: 'pointer',
+                  transition: 'stroke 0.2s ease, fill 0.2s ease'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.stroke = '#310080'; e.currentTarget.style.fill = '#310080'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.stroke = 'white'; e.currentTarget.style.fill = 'white'; }}
+                title="Share response"
+              >
+                <circle cx="18" cy="5" r="3"></circle>
+                <circle cx="6" cy="12" r="3"></circle>
+                <circle cx="18" cy="19" r="3"></circle>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+              </svg>
+            </div>
+          </div>
         )}
       </div>
       
