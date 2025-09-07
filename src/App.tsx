@@ -136,7 +136,18 @@ function App(): JSX.Element {
   };
 
   const parseMarkdown = (text: string) => {
-    return text
+    // First escape HTML to prevent XSS
+    const escapeHtml = (str: string) => {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    };
+    
+    // Escape the entire text first
+    const escaped = escapeHtml(text);
+    
+    // Then apply markdown formatting to the escaped text
+    return escaped
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/\n/g, '<br />');
@@ -158,7 +169,18 @@ function App(): JSX.Element {
   }, []);
 
   const updateMetaTags = (question: string, answer: string) => {
-    document.title = `${question} - minnebo.ai`;
+    // Sanitize content for title and meta tags
+    const sanitizeText = (text: string) => {
+      return text.replace(/[<>&"']/g, (match) => {
+        const entities: { [key: string]: string } = { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' };
+        return entities[match] || match;
+      }).trim();
+    };
+    
+    const safeQuestion = sanitizeText(question);
+    const safeAnswer = sanitizeText(answer);
+    
+    document.title = `${safeQuestion} - minnebo.ai`;
     
     const updateMeta = (property: string, content: string) => {
       let meta = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement;
@@ -172,8 +194,8 @@ function App(): JSX.Element {
     
     const imageUrl = `https://minnebo-ai.vercel.app/api/og-image?question=${encodeURIComponent(question)}&answer=${encodeURIComponent(answer)}`;
     
-    updateMeta('og:title', question);
-    updateMeta('og:description', answer.substring(0, 200) + (answer.length > 200 ? '...' : ''));
+    updateMeta('og:title', safeQuestion);
+    updateMeta('og:description', safeAnswer.substring(0, 200) + (safeAnswer.length > 200 ? '...' : ''));
     updateMeta('og:url', window.location.href);
     updateMeta('og:type', 'article');
     updateMeta('og:site_name', 'minnebo.ai');
