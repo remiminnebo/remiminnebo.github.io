@@ -83,29 +83,23 @@ function App(): JSX.Element {
   };
 
   const createShareableUrl = async (question: string, answer: string) => {
-    // Create long URL with encoded data
-    const data = { q: question, a: answer };
-    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-    const longUrl = `https://minnebo-ai.vercel.app/api/redirect?s=${encoded}`;
-    
-    // Try to shorten it with our own service
     try {
-      const response = await fetch('https://minnebo-ai.vercel.app/api/shorten', {
+      const response = await fetch('https://minnebo-ai.vercel.app/api/share', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ longUrl })
+        body: JSON.stringify({ question, answer })
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        return data.shortUrl;
+      const data = await response.json();
+      if (data.id) {
+        return `https://minnebo.ai/?share=${data.id}`;
       }
     } catch (error) {
-      console.error('URL shortening failed:', error);
+      console.error('Failed to create share link:', error);
     }
-    
-    // Fallback to long URL if shortening fails
-    return longUrl;
+    // Fallback to URL encoding
+    const fallbackData = { q: question, a: answer };
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(fallbackData))));
+    return `https://minnebo.ai/?s=${encoded}`;
   };
 
   const captureScreenshot = async () => {
