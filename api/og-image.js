@@ -1,12 +1,55 @@
+// More comprehensive text sanitization for SVG
+function sanitizeForSvg(text) {
+  if (!text || typeof text !== 'string') return '';
+  
+  // Remove any potential SVG/XML elements and attributes
+  return text
+    .replace(/[<>&"']/g, (match) => {
+      const entities = { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' };
+      return entities[match] || match;
+    })
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
+    .replace(/javascript:/gi, '') // Remove javascript: protocol
+    .replace(/data:/gi, '') // Remove data: protocol
+    .replace(/vbscript:/gi, '') // Remove vbscript: protocol
+    .replace(/<\/?[^>]+(>|$)/g, '') // Remove any remaining HTML/XML tags
+    .trim();
+}
+
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', 'https://minnebo.ai');
   res.setHeader('Content-Type', 'image/svg+xml');
-  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  res.setHeader('Cache-Control', 'public, max-age=3600'); // Shorter cache for security
+  res.setHeader('X-Content-Type-Options', 'nosniff');
 
-  const { question = '', answer = '' } = req.query;
+  const { question = '', answer = '', id = '' } = req.query;
+  
+  let validatedQuestion = '';
+  let validatedAnswer = '';
+  
+  // If an ID is provided, validate through secure store
+  if (id && typeof id === 'string') {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(id)) {
+      try {
+        const response = await fetch(`https://minnebo-ai.vercel.app/api/secure-store?id=${id}`);
+        if (response.ok) {
+          const data = await response.json();
+          validatedQuestion = data.question || '';
+          validatedAnswer = data.answer || '';
+        }
+      } catch (error) {
+        console.error('Failed to validate content:', error);
+      }
+    }
+  } else {
+    // Fallback: heavily sanitize direct parameters (but prefer using ID)
+    validatedQuestion = sanitizeForSvg(question);
+    validatedAnswer = sanitizeForSvg(answer);
+  }
 
-  const questionText = question ? (question.length > 60 ? question.substring(0, 60) + '...' : question) : '';
-  const answerText = answer ? (answer.length > 100 ? answer.substring(0, 100) + '...' : answer) : '';
+  const questionText = validatedQuestion ? (validatedQuestion.length > 60 ? validatedQuestion.substring(0, 60) + '...' : validatedQuestion) : '';
+  const answerText = validatedAnswer ? (validatedAnswer.length > 100 ? validatedAnswer.substring(0, 100) + '...' : validatedAnswer) : '';
 
   // Fetch the actual logo
   let logoSvg = '';
@@ -45,14 +88,14 @@ export default async function handler(req, res) {
       ${questionText ? `
       <!-- Question -->
       <text x="600" y="280" font-family="Arial, sans-serif" font-size="28" font-weight="bold" text-anchor="middle" fill="white">
-        ${questionText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+        ${questionText}
       </text>
       ` : ''}
       
       ${answerText ? `
       <!-- Answer -->
       <text x="600" y="350" font-family="Arial, sans-serif" font-size="20" text-anchor="middle" fill="rgba(255,255,255,0.9)">
-        ${answerText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+        ${answerText}
       </text>
       ` : ''}
       

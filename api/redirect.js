@@ -17,9 +17,10 @@ export default async function handler(req, res) {
   let question = '';
   let answer = '';
   
+  // Validate share ID format (UUID)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  
   if (share && typeof share === 'string') {
-    // Validate share ID format (UUID)
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (uuidRegex.test(share)) {
       // Fetch from secure store API
       try {
@@ -35,7 +36,10 @@ export default async function handler(req, res) {
     }
   }
   
-  const imageUrl = `https://minnebo-ai.vercel.app/api/og-image?question=${encodeURIComponent(question)}&answer=${encodeURIComponent(answer)}`;
+  // Use share ID for OG image to ensure validation
+  const imageUrl = share && uuidRegex.test(share) 
+    ? `https://minnebo-ai.vercel.app/api/og-image?id=${share}`
+    : `https://minnebo-ai.vercel.app/api/og-image?question=${encodeURIComponent(question)}&answer=${encodeURIComponent(answer)}`;
   
   // Set security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
