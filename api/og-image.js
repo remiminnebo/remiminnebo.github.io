@@ -87,11 +87,20 @@ export default async function handler(req, res) {
   const questionText = validatedQuestion ? (validatedQuestion.length > 60 ? validatedQuestion.substring(0, 60) + '...' : validatedQuestion) : '';
   const answerText = validatedAnswer ? (validatedAnswer.length > 100 ? validatedAnswer.substring(0, 100) + '...' : validatedAnswer) : '';
 
-  // Use static, safe logo instead of fetching external content
-  const logoSvg = `
-    <rect x="450" y="80" width="300" height="120" rx="20" fill="white" fill-opacity="0.9" />
-    <text x="600" y="150" font-family="Arial, sans-serif" font-size="36" font-weight="bold" text-anchor="middle" fill="#310080">MINNEBO</text>
-  `;
+  // Read and embed the local logo from src/logo.svg
+  let embeddedLogo = '';
+  try {
+    const logoPath = path.join(process.cwd(), 'src', 'logo.svg');
+    let raw = fs.readFileSync(logoPath, 'utf8');
+    // Strip XML/doctype and outer svg wrapper tags to embed contents cleanly
+    raw = raw.replace(/<\?xml[\s\S]*?\?>/i, '');
+    raw = raw.replace(/<!DOCTYPE[\s\S]*?>/i, '');
+    const inner = raw.replace(/^[\s\S]*?<svg[^>]*>/i, '').replace(/<\/svg>\s*$/i, '');
+    embeddedLogo = inner || raw; // fallback to raw if stripping fails
+  } catch (e) {
+    // Fallback: simple wordmark
+    embeddedLogo = '<text x="0" y="40" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#310080">MINNEBO</text>';
+  }
 
   const svg = `
     <svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
@@ -127,7 +136,9 @@ export default async function handler(req, res) {
         </filter>
       </defs>
       
-      <!-- Background with subtle pattern -->
+      <!-- Solid brand background under gradient -->
+      <rect width="1200" height="630" fill="#03BFF3" />
+      <!-- Background gradient overlay -->
       <rect width="1200" height="630" fill="url(#mainBg)" />
       
       <!-- Subtle overlay pattern -->
@@ -137,18 +148,10 @@ export default async function handler(req, res) {
       <rect x="0" y="0" width="1200" height="8" fill="url(#logoGradient)" />
       <rect x="0" y="622" width="1200" height="8" fill="url(#logoGradient)" />
       
-      <!-- Main logo area -->
-      <rect x="50" y="50" width="300" height="120" rx="20" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.3)" stroke-width="2" />
-      
-      <!-- MINNEBO logo text -->
-      <text x="200" y="130" font-family="Arial, sans-serif" font-size="42" font-weight="bold" text-anchor="middle" fill="url(#logoGradient)" filter="url(#glow)">
-        MINNEBO
-      </text>
-      
-      <!-- Subtitle -->
-      <text x="200" y="155" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="rgba(255,255,255,0.8)">
-        AI Wisdom
-      </text>
+      <!-- Embedded logo from src/logo.svg placed prominently -->
+      <g transform="translate(250,80) scale(0.6)" filter="url(#glow)">
+        ${embeddedLogo}
+      </g>
       
       ${questionText ? `
       <!-- Question section with background -->
@@ -229,6 +232,8 @@ export default async function handler(req, res) {
       </text>
     </svg>
   `;
+import fs from 'fs';
+import path from 'path';
 
   res.send(svg);
 }

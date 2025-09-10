@@ -271,7 +271,8 @@ function App(): JSX.Element {
       const data = await response.json();
       if (data.id) {
         setLastShareId(data.id);
-        return `${window.location.origin}/?share=${data.id}`;
+        const base = (process.env.REACT_APP_SHARE_BASE as string) || 'https://minnebo-ai.vercel.app/api/redirect';
+        return `${base}?share=${data.id}`;
       }
     } catch (error) {
       console.error('Failed to create share link:', error);

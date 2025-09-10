@@ -62,9 +62,12 @@ export default async function handler(req, res) {
   }
   
   // Always use share ID for OG image to ensure validation and security
-  const imageUrl = share && uuidRegex.test(share) 
+  const imagePng = share && uuidRegex.test(share)
+    ? `https://minnebo-ai.vercel.app/api/og-image-png?id=${share}`
+    : `https://minnebo-ai.vercel.app/api/og-image-png`;
+  const imageSvg = share && uuidRegex.test(share)
     ? `https://minnebo-ai.vercel.app/api/og-image?id=${share}`
-    : `https://minnebo-ai.vercel.app/api/og-image`; // Default image when no valid share
+    : `https://minnebo-ai.vercel.app/api/og-image`;
   
   // Set security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -89,7 +92,10 @@ export default async function handler(req, res) {
       <meta property="og:url" content="https://minnebo.ai${share && uuidRegex.test(share) ? `/?share=${escapeHtml(share)}` : ''}" />
       <meta property="og:type" content="article" />
       <meta property="og:site_name" content="MINNEBO" />
-      <meta property="og:image" content="${escapeHtml(imageUrl)}" />
+      <meta property="og:image" content="${escapeHtml(imagePng)}" />
+      <meta property="og:image:type" content="image/png" />
+      <meta property="og:image" content="${escapeHtml(imageSvg)}" />
+      <meta property="og:image:type" content="image/svg+xml" />
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
       <meta property="og:image:alt" content="MINNEBO AI Wisdom - ${escapeHtml(question ? question.substring(0, 50) : 'Ancient wisdom meets modern AI')}" />
@@ -101,7 +107,8 @@ export default async function handler(req, res) {
       <meta name="twitter:description" content="${escapeHtml(answer ? 
         `${answer.substring(0, 140)}${answer.length > 140 ? '...' : ''}` : 
         '🧙‍♂️ Experience profound AI wisdom inspired by ancient teachings. Ask your deepest questions and receive guidance that transcends time.')}" />
-      <meta name="twitter:image" content="${escapeHtml(imageUrl)}" />
+      <meta name="twitter:image" content="${escapeHtml(imagePng)}" />
+      <meta name="twitter:image:type" content="image/png" />
       <meta name="twitter:image:alt" content="MINNEBO AI Wisdom - ${escapeHtml(question ? question.substring(0, 50) : 'Ancient wisdom meets modern AI')}" />
       
       <script>
