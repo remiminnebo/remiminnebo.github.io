@@ -1380,21 +1380,43 @@ function App(): JSX.Element {
                 <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
               </svg>
               </div>
-              <div role="group" aria-label="Answer actions" style={pillGroup as any}>
+              <div aria-label="Answer actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <button
                   onClick={() => { setInput(lastQuestion); setFollowUpOpen(false); handleSend(); }}
-                  style={pill(false, toneGradients.guide) as any}
                   title="Regenerate"
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: '#200F3B',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer'
+                  }}
                 >
-                  <IconWand />Regenerate
+                  <IconWand /> Regenerate
                 </button>
                 <button
                   aria-pressed={followUpOpen}
                   onClick={() => setFollowUpOpen(!followUpOpen)}
-                  style={pill(followUpOpen, lengthGradients.auto) as any}
                   title="Follow-up"
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: '#200F3B',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer'
+                  }}
                 >
-                  <IconPlus />Follow-up
+                  <IconPlus /> Follow-up
                 </button>
               </div>
             </div>
