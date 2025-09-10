@@ -25,14 +25,13 @@ function App(): JSX.Element {
   const [historyFocusIdx, setHistoryFocusIdx] = useState(0);
   const historyListRef = useRef<HTMLDivElement | null>(null);
   const historyItemRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [followUpOpen, setFollowUpOpen] = useState(false);
-  const [followUpText, setFollowUpText] = useState('');
+  // follow-up removed
   const [lastShareId, setLastShareId] = useState<string | null>(null);
   const shareMenuRef = useRef<HTMLDivElement | null>(null);
   const [shareLink, setShareLink] = useState<string | null>(null);
   const answerBlockRef = useRef<HTMLDivElement | null>(null);
   const leftActionsRef = useRef<HTMLDivElement | null>(null);
-  const rightActionsRef = useRef<HTMLDivElement | null>(null);
+  // rightActionsRef removed (no right cluster)
   const [minAnswerWidth, setMinAnswerWidth] = useState<number>(0);
   const [contentWidth, setContentWidth] = useState<number | undefined>(undefined);
   const [chatWidth, setChatWidth] = useState<number | undefined>(undefined);
@@ -134,12 +133,7 @@ function App(): JSX.Element {
       <path d="M4 6h12M4 12h14M4 18h10"/>
     </svg>
   );
-  const IconPlus = () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ marginRight: 6 }}>
-      <line x1="12" y1="5" x2="12" y2="19" />
-      <line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-  );
+  // Follow-up removed
 
   const IconChevron = ({ open }: { open: boolean }) => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ marginLeft: 8, transition: 'transform 0.18s ease', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}>
@@ -477,9 +471,8 @@ function App(): JSX.Element {
   useEffect(() => {
     function computeMinAnswerWidth() {
       const lw = leftActionsRef.current?.offsetWidth || 0;
-      const rw = rightActionsRef.current?.offsetWidth || 0;
-      const padding = 32; // space between groups
-      const desired = lw + rw + padding;
+      const padding = 24; // breathing room
+      const desired = lw + padding;
       // Cap to our max content width
       const cap = isMobile ? Math.floor(window.innerWidth * 0.9) : 700;
       setMinAnswerWidth(Math.min(desired, cap));
@@ -489,7 +482,7 @@ function App(): JSX.Element {
     const onResize = () => computeMinAnswerWidth();
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [isMobile, isAnswerComplete, answer, followUpOpen, showShareMenu]);
+  }, [isMobile, isAnswerComplete, answer, showShareMenu]);
 
   // Keep chat and answer sharing the same centered width
   useEffect(() => {
@@ -566,18 +559,16 @@ function App(): JSX.Element {
   }, [showSnake, direction, food, highScore]);
 
   const handleSend = async () => {
-    if ((followUpOpen && followUpText.trim()) || input.trim()) {
+    if ((overrideMessage && overrideMessage.trim()) || input.trim()) {
       if (input.toLowerCase() === 'snake') {
         setShowSnake(true);
         setInput('');
         return;
       }
       
-      const userMessage = (followUpOpen && followUpText.trim()) ? `${lastQuestion}\n\nFollow-up: ${followUpText.trim()}` : input;
+      const userMessage = overrideMessage ? overrideMessage : input;
       setLastQuestion(userMessage);
       setInput('');
-      setFollowUpText('');
-      setFollowUpOpen(false);
       setAnswer('');
       setIsTyping(true);
       setIsAnswerComplete(false);
@@ -1321,23 +1312,17 @@ function App(): JSX.Element {
               }}
               dangerouslySetInnerHTML={{ __html: parseMarkdown(answer) }}
             />
-            {/* Actions bar (icons left, controls right) */}
-            {followUpOpen && (
-              <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
-                <input aria-label="Follow-up" value={followUpText} onChange={(e) => setFollowUpText(e.target.value)} placeholder="Add a follow-up..." style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid #DDD' }} />
-                <button onClick={handleSend} style={{ padding: '6px 10px', borderRadius: '6px', border: 'none', background: '#200F3B', color: 'white', fontWeight: 'bold' }}>Send</button>
-              </div>
-            )}
+            {/* Actions bar */}
             <div style={{
               display: isAnswerComplete ? 'flex' : 'none',
               alignItems: 'center',
-              justifyContent: 'space-between',
+              justifyContent: 'flex-start',
               flexWrap: 'wrap',
               rowGap: '8px',
               columnGap: '12px',
               marginTop: '10px'
             }}>
-              <div ref={leftActionsRef} style={{ display: 'flex', gap: '16px', flexShrink: 0 }}>
+              <div ref={leftActionsRef} style={{ display: 'flex', gap: '16px', flexShrink: 0, alignItems: 'center' }}>
               <svg
                 onClick={() => {
                   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1427,10 +1412,8 @@ function App(): JSX.Element {
                 <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
                 <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
               </svg>
-              </div>
-              <div ref={rightActionsRef} aria-label="Answer actions" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0, marginLeft: 'auto' }}>
                 <button
-                  onClick={() => { setInput(lastQuestion); setFollowUpOpen(false); handleSend(); }}
+                  onClick={() => handleSend(lastQuestion)}
                   title="Regenerate"
                   style={{
                     padding: '6px 10px',
@@ -1446,25 +1429,6 @@ function App(): JSX.Element {
                   }}
                 >
                   <IconWand /> Regenerate
-                </button>
-                <button
-                  aria-pressed={followUpOpen}
-                  onClick={() => setFollowUpOpen(!followUpOpen)}
-                  title="Follow-up"
-                  style={{
-                    padding: '6px 10px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: '#200F3B',
-                    color: 'white',
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <IconPlus /> Follow-up
                 </button>
               </div>
             </div>
