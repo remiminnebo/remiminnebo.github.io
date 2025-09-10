@@ -30,6 +30,10 @@ function App(): JSX.Element {
   const [lastShareId, setLastShareId] = useState<string | null>(null);
   const shareMenuRef = useRef<HTMLDivElement | null>(null);
   const [shareLink, setShareLink] = useState<string | null>(null);
+  const answerBlockRef = useRef<HTMLDivElement | null>(null);
+  const leftActionsRef = useRef<HTMLDivElement | null>(null);
+  const rightActionsRef = useRef<HTMLDivElement | null>(null);
+  const [minAnswerWidth, setMinAnswerWidth] = useState<number>(0);
   const [controlsOpen, setControlsOpen] = useState(false);
 
   // Fancy pill-style button styling for selectors
@@ -468,6 +472,23 @@ function App(): JSX.Element {
   }, [showSnake]);
 
   // Close share menu on outside click / Escape
+  useEffect(() => {
+    function computeMinAnswerWidth() {
+      const lw = leftActionsRef.current?.offsetWidth || 0;
+      const rw = rightActionsRef.current?.offsetWidth || 0;
+      const padding = 32; // space between groups
+      const desired = lw + rw + padding;
+      // Cap to our max content width
+      const cap = isMobile ? Math.floor(window.innerWidth * 0.9) : 700;
+      setMinAnswerWidth(Math.min(desired, cap));
+    }
+
+    computeMinAnswerWidth();
+    const onResize = () => computeMinAnswerWidth();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [isMobile, isAnswerComplete, answer, followUpOpen, showShareMenu]);
+
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       const el = shareMenuRef.current;
@@ -1238,23 +1259,47 @@ function App(): JSX.Element {
         
         {/* Typing Indicator: simple three fading dots */}
         {isTyping && (
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '8px' }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#200F3B', opacity: 0.9, animation: 'pulse 1.2s ease-in-out infinite both', animationDelay: '0s' }} />
-            <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#200F3B', opacity: 0.75, animation: 'pulse 1.2s ease-in-out infinite both', animationDelay: '0.2s' }} />
-            <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#200F3B', opacity: 0.6, animation: 'pulse 1.2s ease-in-out infinite both', animationDelay: '0.4s' }} />
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px' }}>
+            <div style={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              backgroundImage: 'linear-gradient(135deg, #03BFF3, #310080)',
+              boxShadow: '0 0 10px rgba(49,0,128,0.45)',
+              animation: 'pulse 1.2s ease-in-out infinite both',
+              animationDelay: '0s'
+            }} />
+            <div style={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              backgroundImage: 'linear-gradient(135deg, #FF0095, #FF0004)',
+              boxShadow: '0 0 10px rgba(255,0,149,0.45)',
+              animation: 'pulse 1.2s ease-in-out infinite both',
+              animationDelay: '0.2s'
+            }} />
+            <div style={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              backgroundImage: 'linear-gradient(135deg, #44FF06, #8DF28F)',
+              boxShadow: '0 0 10px rgba(68,255,6,0.45)',
+              animation: 'pulse 1.2s ease-in-out infinite both',
+              animationDelay: '0.4s'
+            }} />
           </div>
         )}
         
         {answer && (
-          <div style={{ position: 'relative' }}>
-            <div
+          <div ref={answerBlockRef} style={{ position: 'relative', minWidth: minAnswerWidth ? `${minAnswerWidth}px` : undefined, maxWidth: isMobile ? '90vw' : '700px', width: 'auto' }}>
+            <div 
               style={{
                 padding: '16px',
                 borderRadius: '12px',
                 fontSize: '18px',
                 lineHeight: '1.6',
-                maxWidth: isMobile ? '90vw' : '700px',
-                width: isMobile ? '100%' : 'auto',
+                maxWidth: 'inherit',
+                width: '100%',
                 textAlign: 'left',
                 fontFamily: 'Tahoma, sans-serif',
                 fontWeight: 'normal',
@@ -1279,9 +1324,12 @@ function App(): JSX.Element {
               display: isAnswerComplete ? 'flex' : 'none',
               alignItems: 'center',
               justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              rowGap: '8px',
+              columnGap: '12px',
               marginTop: '10px'
             }}>
-              <div style={{ display: 'flex', gap: '16px' }}>
+              <div ref={leftActionsRef} style={{ display: 'flex', gap: '16px', flexShrink: 0 }}>
               <svg
                 onClick={() => {
                   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1372,7 +1420,7 @@ function App(): JSX.Element {
                 <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
               </svg>
               </div>
-              <div aria-label="Answer actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div ref={rightActionsRef} aria-label="Answer actions" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0, marginLeft: 'auto' }}>
                 <button
                   onClick={() => { setInput(lastQuestion); setFollowUpOpen(false); handleSend(); }}
                   title="Regenerate"
