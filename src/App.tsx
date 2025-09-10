@@ -34,6 +34,7 @@ function App(): JSX.Element {
   const leftActionsRef = useRef<HTMLDivElement | null>(null);
   const rightActionsRef = useRef<HTMLDivElement | null>(null);
   const [minAnswerWidth, setMinAnswerWidth] = useState<number>(0);
+  const [contentWidth, setContentWidth] = useState<number | undefined>(undefined);
   const [controlsOpen, setControlsOpen] = useState(false);
 
   // Fancy pill-style button styling for selectors
@@ -489,6 +490,14 @@ function App(): JSX.Element {
     return () => window.removeEventListener('resize', onResize);
   }, [isMobile, isAnswerComplete, answer, followUpOpen, showShareMenu]);
 
+  // Keep chat and answer sharing the same centered width
+  useEffect(() => {
+    const cap = isMobile ? Math.floor(window.innerWidth * 0.9) : 700;
+    const cw = Math.min((chatWidth || cap), cap);
+    const width = Math.max(minAnswerWidth || 0, cw);
+    setContentWidth(width);
+  }, [chatWidth, minAnswerWidth, isMobile]);
+
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       const el = shareMenuRef.current;
@@ -556,7 +565,7 @@ function App(): JSX.Element {
   }, [showSnake, direction, food, highScore]);
 
   const handleSend = async () => {
-    if (input.trim()) {
+    if ((followUpOpen && followUpText.trim()) || input.trim()) {
       if (input.toLowerCase() === 'snake') {
         setShowSnake(true);
         setInput('');
@@ -662,7 +671,8 @@ function App(): JSX.Element {
     background: 'rgba(255,255,255,0.15)',
     border: '1px solid rgba(255,255,255,0.35)',
     boxShadow: '0 6px 14px rgba(0,0,0,0.12)',
-    backdropFilter: 'blur(4px)'
+    backdropFilter: 'blur(4px)',
+    margin: '0 auto'
   } as const;
 
   const inputPill = {
@@ -1291,7 +1301,7 @@ function App(): JSX.Element {
         )}
         
         {answer && (
-          <div ref={answerBlockRef} style={{ position: 'relative', minWidth: minAnswerWidth ? `${minAnswerWidth}px` : undefined, maxWidth: isMobile ? '90vw' : '700px', width: 'auto' }}>
+          <div ref={answerBlockRef} style={{ position: 'relative', minWidth: minAnswerWidth ? `${minAnswerWidth}px` : undefined, width: contentWidth ? `${contentWidth}px` : 'auto', maxWidth: isMobile ? '90vw' : '700px', margin: '0 auto' }}>
             <div 
               style={{
                 padding: '16px',
