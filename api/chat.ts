@@ -3,6 +3,8 @@ import { checkGlobalRateLimit, checkFingerprintRateLimit, requestChallenge, veri
 
 interface RequestBody {
   message: string;
+  tone?: string;
+  length?: 'short' | 'long';
   challengeId?: string;
   challengeAnswer?: string;
 }
@@ -130,14 +132,27 @@ function calculateEntropy(text: string): number {
 }
 
 // Validate Host header to prevent DNS rebinding
-function validateHost(req: any): boolean {
-  const host = req.headers.host;
-  const allowedHosts = ['minnebo.ai', 'www.minnebo.ai', 'minnebo-ai.vercel.app'];
-  
-  if (!host || !allowedHosts.includes(host.toLowerCase())) {
-    return false;
+function getAllowedHosts(): string[] {
+  const env = process.env.ALLOWED_HOSTS;
+  if (env && env.trim().length > 0) {
+    return env.split(',').map(h => h.trim().toLowerCase()).filter(Boolean);
   }
-  return true;
+  return ['minnebo.ai', 'www.minnebo.ai', 'minnebo-ai.vercel.app', 'localhost:3000'];
+}
+
+function validateHost(req: any): boolean {
+  const host = (req.headers.host || '').toLowerCase();
+  const allowedHosts = getAllowedHosts();
+  return Boolean(host && allowedHosts.includes(host));
+}
+
+function getAllowedOrigin(req: any): string {
+  const origin = req.headers.origin;
+  const allowed = (process.env.ALLOWED_ORIGINS || 'https://minnebo.ai,https://minnebo-ai.vercel.app,http://localhost:3000')
+    .split(',').map(s => s.trim());
+  if (origin && allowed.includes(origin)) return origin;
+  // Fallback to same-origin policy for non-CORS
+  return allowed[0];
 }
 
 // Advanced security checks
@@ -162,8 +177,8 @@ export default async function handler(req: any, res: any) {
     return res.status(400).end('Invalid host header');
   }
   
-  // Secure CORS policy
-  res.setHeader('Access-Control-Allow-Origin', 'https://minnebo.ai');
+  // Secure CORS policy (env-driven)
+  res.setHeader('Access-Control-Allow-Origin', getAllowedOrigin(req));
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Max-Age', '86400');
@@ -233,6 +248,9 @@ export default async function handler(req: any, res: any) {
       const message = body.hasOwnProperty('message') && 
                       body.message !== undefined && 
                       typeof body.message === 'string' ? body.message : '';
+
+      const tone = typeof body.tone === 'string' ? body.tone : undefined;
+      const lengthPref = body.length === 'short' || body.length === 'long' ? body.length : undefined;
       
       if (!message) {
         throw new Error('Message field is required');
@@ -262,6 +280,8 @@ export default async function handler(req: any, res: any) {
       res.setHeader('Transfer-Encoding', 'chunked');
       res.flushHeaders();
       
+      const lengthInstruction = lengthPref === 'short' ? 'Keep it within 1–2 short lines.' : lengthPref === 'long' ? 'Allow 3–6 concise lines if needed.' : 'Keep it concise.';
+
       const sagePrompt = `Transform any response into the voice of an ancient sage.
 
 Guidelines:
@@ -288,6 +308,8 @@ Instead of "Thinking…": "The silence gathers before the word is born."
 
 User question: ${sanitizedMessage}
 
+${lengthInstruction}
+
 Always return the transformed answer in this sage-like style.`;
       
       const guidePrompt = `Take the model's normal answer and transform it into the voice of a serene guide or mystic teacher. Responses should feel timeless, poetic, and slightly enigmatic, yet still clear.
@@ -301,9 +323,37 @@ Guidelines:
 
 User question: ${sanitizedMessage}
 
+${lengthInstruction}
+
 Always return the transformed, guru-like version of the answer.`;
-      
-      const decoratedPrompt = Math.random() < 0.5 ? sagePrompt : guidePrompt;
+
+      const stoicPrompt = `Answer with the tone of a Stoic philosopher (Marcus Aurelius, Seneca). Be calm, rational, and duty-oriented. Avoid excess poetry.
+
+User question: ${sanitizedMessage}
+
+${lengthInstruction}`;
+
+      const sufiPrompt = `Answer in a gentle, mystical Sufi tone (Rumi). Use metaphors of love, unity, and surrender. Keep it clear and grounded.
+
+User question: ${sanitizedMessage}
+
+${lengthInstruction}`;
+
+      const plainPrompt = `Answer clearly and plainly without flowery language. Be direct, kind, and concise.
+
+User question: ${sanitizedMessage}
+
+${lengthInstruction}`;
+
+      const toneMap: Record<string, string> = {
+        zen: sagePrompt,
+        guide: guidePrompt,
+        stoic: stoicPrompt,
+        sufi: sufiPrompt,
+        plain: plainPrompt
+      };
+
+      const decoratedPrompt = tone && toneMap[tone.toLowerCase()] ? toneMap[tone.toLowerCase()] : (Math.random() < 0.5 ? sagePrompt : guidePrompt);
       
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
         method: 'POST',

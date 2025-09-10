@@ -193,14 +193,26 @@ function safeExtract(obj, allowedKeys) {
 }
 
 // Validate Host header to prevent DNS rebinding
-function validateHost(req) {
-  const host = req.headers.host;
-  const allowedHosts = ['minnebo.ai', 'www.minnebo.ai', 'minnebo-ai.vercel.app'];
-  
-  if (!host || !allowedHosts.includes(host.toLowerCase())) {
-    return false;
+function getAllowedHosts() {
+  const env = process.env.ALLOWED_HOSTS;
+  if (env && env.trim().length > 0) {
+    return env.split(',').map(h => h.trim().toLowerCase()).filter(Boolean);
   }
-  return true;
+  return ['minnebo.ai', 'www.minnebo.ai', 'minnebo-ai.vercel.app', 'localhost:3000'];
+}
+
+function validateHost(req) {
+  const host = (req.headers.host || '').toLowerCase();
+  const allowedHosts = getAllowedHosts();
+  return Boolean(host && allowedHosts.includes(host));
+}
+
+function getAllowedOrigin(req) {
+  const origin = req.headers.origin;
+  const allowed = (process.env.ALLOWED_ORIGINS || 'https://minnebo.ai,https://minnebo-ai.vercel.app,http://localhost:3000')
+    .split(',').map(s => s.trim());
+  if (origin && allowed.includes(origin)) return origin;
+  return allowed[0];
 }
 
 export default async function handler(req, res) {
@@ -210,7 +222,7 @@ export default async function handler(req, res) {
   }
   
   // Security headers
-  res.setHeader('Access-Control-Allow-Origin', 'https://minnebo.ai');
+  res.setHeader('Access-Control-Allow-Origin', getAllowedOrigin(req));
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Max-Age', '86400');

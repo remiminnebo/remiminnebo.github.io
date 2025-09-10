@@ -1,51 +1,8 @@
 import logo from './logo.svg';
-import { useState, useEffect } from 'react';
-import html2canvas from 'html2canvas';
-import { WhatsappShareButton, LinkedinShareButton, FacebookShareButton } from 'react-share';
+import { useState, useEffect, useRef } from 'react';
 
 function App(): JSX.Element {
-  // Add Google Fonts and CSS animations
-  const fontLink = document.createElement('link');
-  fontLink.href = 'https://fonts.googleapis.com/css2?family=Katibeh&display=swap';
-  fontLink.rel = 'stylesheet';
-  if (!document.head.querySelector('link[href*="Katibeh"]')) {
-    document.head.appendChild(fontLink);
-  }
-  
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes pulse {
-      0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
-      40% { transform: scale(1); opacity: 1; }
-    }
-    @keyframes trippy {
-      0% { transform: scale(1) rotate(0deg); }
-      25% { transform: scale(1.02) rotate(0.5deg); }
-      50% { transform: scale(1.04) rotate(0deg); }
-      75% { transform: scale(1.02) rotate(-0.5deg); }
-      100% { transform: scale(1) rotate(0deg); }
-    }
-    @keyframes trippy2 {
-      0% { transform: scale(0.98) rotate(0deg) skewX(0deg); }
-      50% { transform: scale(1.06) rotate(-1deg) skewX(1deg); }
-      100% { transform: scale(0.98) rotate(0deg) skewX(0deg); }
-    }
-    @keyframes trippy3 {
-      0% { transform: translateX(0px) translateY(0px); }
-      33% { transform: translateX(1px) translateY(-0.5px); }
-      66% { transform: translateX(-0.5px) translateY(1px); }
-      100% { transform: translateX(0px) translateY(0px); }
-    }
-    @keyframes fadeInOut {
-      0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
-      50% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-      100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
-    }
-  `;
-  if (!document.head.querySelector('style[data-animations]')) {
-    style.setAttribute('data-animations', 'true');
-    document.head.appendChild(style);
-  }
+  const API_BASE = (process.env.REACT_APP_API_BASE as string) || '';
   const [input, setInput] = useState('');
   const [answer, setAnswer] = useState('');
   const [lastQuestion, setLastQuestion] = useState('');
@@ -58,6 +15,202 @@ function App(): JSX.Element {
   const [cachedScreenshot, setCachedScreenshot] = useState<string | null>(null);
   const [challenge, setChallenge] = useState<{challengeId: string, question: string} | null>(null);
   const [challengeAnswer, setChallengeAnswer] = useState('');
+  const [tone, setTone] = useState<'zen' | 'guide' | 'stoic' | 'sufi' | 'plain'>('zen');
+  const [lengthPref, setLengthPref] = useState<'short' | 'long' | 'auto'>('auto');
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState<{ id: string, question: string, answer: string, pinned?: boolean, ts: number }[]>([]);
+  const [historyQuery, setHistoryQuery] = useState('');
+  const [historyAnimatingOut, setHistoryAnimatingOut] = useState(false);
+  const [historyFocusIdx, setHistoryFocusIdx] = useState(0);
+  const historyListRef = useRef<HTMLDivElement | null>(null);
+  const historyItemRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [followUpText, setFollowUpText] = useState('');
+  const [lastShareId, setLastShareId] = useState<string | null>(null);
+  const shareMenuRef = useRef<HTMLDivElement | null>(null);
+  const [controlsOpen, setControlsOpen] = useState(false);
+
+  // Fancy pill-style button styling for selectors
+  const toneGradients: Record<string, [string, string]> = {
+    // Strong brand-forward gradients
+    zen: ['#44FF06', '#8DF28F'],        // vibrant greens
+    guide: ['#03BFF3', '#310080'],      // cyan → deep purple
+    stoic: ['#310080', '#4609A8'],      // deep purples
+    sufi: ['#FF0095', '#FF0004'],       // magenta → red
+    plain: ['#03BFF3', '#FFFFFF']       // cyan → white
+  };
+  const lengthGradients: Record<string, [string, string]> = {
+    auto: ['#03BFF3', '#310080'],       // cyan → deep purple
+    short: ['#44FF06', '#8DF28F'],      // greens
+    long: ['#FF0095', '#FF0004']        // magenta → red
+  };
+
+  const pill = (active: boolean, grad?: [string, string]) => {
+    if (active && grad) {
+      const [g1, g2] = grad;
+      return {
+        padding: '6px 12px',
+        borderRadius: '999px',
+        border: '2px solid transparent',
+        backgroundColor: '#FFFFFF',
+        backgroundImage: `linear-gradient(#FFFFFF, #FFFFFF), linear-gradient(135deg, ${g1}, ${g2})`,
+        backgroundOrigin: 'border-box',
+        backgroundClip: 'padding-box, border-box',
+        color: '#200F3B',
+        cursor: 'pointer',
+        fontWeight: 'bold' as const,
+        boxShadow: '0 6px 14px rgba(0,0,0,0.18)',
+        transition: 'all 0.18s ease-in-out',
+        transform: 'translateZ(0)'
+      } as const;
+    }
+    return {
+      padding: '6px 12px',
+      borderRadius: '999px',
+      border: '1px solid rgba(255,255,255,0.7)',
+      background: 'rgba(255,255,255,0.12)',
+      color: 'white',
+      cursor: 'pointer',
+      fontWeight: 'bold' as const,
+      boxShadow: 'none',
+      transition: 'all 0.18s ease-in-out'
+    } as const;
+  };
+  const pillGroup = {
+    display: 'flex',
+    gap: '6px',
+    padding: '6px',
+    borderRadius: '999px',
+    background: 'rgba(255,255,255,0.15)',
+    border: '1px solid rgba(255,255,255,0.35)'
+  } as const;
+
+  // Small inline icons (no emojis)
+  const IconLeaf = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ marginRight: 6 }}>
+      <path d="M5 21c8 0 14-6 14-14 0 0-9 0-14 5s-5 14-5 14z"/>
+    </svg>
+  );
+  const IconCompass = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ marginRight: 6 }}>
+      <circle cx="12" cy="12" r="10"/><polygon points="16 8 8 10 10 16 16 8"/>
+    </svg>
+  );
+  const IconColumn = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ marginRight: 6 }}>
+      <path d="M4 7h16M6 7v13m12-13v13M8 20h8"/>
+    </svg>
+  );
+  const IconSwirl = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ marginRight: 6 }}>
+      <path d="M21 12a9 9 0 1 1-9-9c3 0 5 2 5 5 0 2-1 3-3 3-3 0-4-4-1-5"/>
+    </svg>
+  );
+  const IconText = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ marginRight: 6 }}>
+      <path d="M4 6h16M4 12h10M4 18h14"/>
+    </svg>
+  );
+  const IconWand = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ marginRight: 6 }}>
+      <path d="M6 18L18 6M14 6h4v4"/>
+    </svg>
+  );
+  const IconShort = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ marginRight: 6 }}>
+      <path d="M4 8h8M4 14h6"/>
+    </svg>
+  );
+  const IconLong = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ marginRight: 6 }}>
+      <path d="M4 6h12M4 12h14M4 18h10"/>
+    </svg>
+  );
+
+  const IconChevron = ({ open }: { open: boolean }) => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ marginLeft: 8, transition: 'transform 0.18s ease', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+
+  const summaryText = () => {
+    const toneLabel = ({ zen: 'Zen', guide: 'Guide', stoic: 'Stoic', sufi: 'Sufi', plain: 'Plain' } as const)[tone];
+    const lengthLabel = lengthPref === 'auto' ? 'Auto' : lengthPref === 'short' ? 'Short' : 'Long';
+    return `${toneLabel} • ${lengthLabel}`;
+  };
+
+  const selectTone = (t: 'zen' | 'guide' | 'stoic' | 'sufi' | 'plain') => {
+    setTone(t);
+    // Auto fold after a quick selection
+    setTimeout(() => setControlsOpen(false), 180);
+  };
+  const selectLength = (l: 'auto' | 'short' | 'long') => {
+    setLengthPref(l);
+    setTimeout(() => setControlsOpen(false), 180);
+  };
+
+  const closeHistory = () => {
+    if (!historyOpen) return;
+    setHistoryAnimatingOut(true);
+    setTimeout(() => {
+      setHistoryAnimatingOut(false);
+      setHistoryOpen(false);
+    }, 200);
+  };
+
+  // Focus and keyboard navigation for history
+  useEffect(() => {
+    if (historyOpen && historyListRef.current) {
+      historyListRef.current.focus();
+      setHistoryFocusIdx(0);
+    }
+  }, [historyOpen, historyQuery]);
+
+  useEffect(() => {
+    if (!historyOpen) return;
+    const el = historyItemRefs.current[historyFocusIdx];
+    if (el && 'scrollIntoView' in el) {
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [historyFocusIdx, historyOpen]);
+
+  const handleHistoryKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const filtered = history
+      .slice()
+      .sort((a, b) => (Number(!!b.pinned) - Number(!!a.pinned)) || (b.ts - a.ts))
+      .filter(item => {
+        const q = historyQuery.trim().toLowerCase();
+        if (!q) return true;
+        return item.question.toLowerCase().includes(q) || item.answer.toLowerCase().includes(q);
+      });
+    if (!filtered.length) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHistoryFocusIdx(i => Math.min(i + 1, filtered.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHistoryFocusIdx(i => Math.max(i - 1, 0));
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setHistoryFocusIdx(0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      setHistoryFocusIdx(filtered.length - 1);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const item = filtered[historyFocusIdx];
+      if (item) {
+        setLastQuestion(item.question);
+        setAnswer(item.answer);
+        setIsAnswerComplete(true);
+        setShowShareMenu(false);
+        setLastShareId(null);
+        updateMetaTags(item.question, item.answer);
+        closeHistory();
+      }
+    }
+  };
 
   const fallbackCopyTextToClipboard = (text: string) => {
     const textArea = document.createElement('textarea');
@@ -83,9 +236,28 @@ function App(): JSX.Element {
     document.body.removeChild(textArea);
   };
 
+  const handleVote = async (vote: 'up' | 'down') => {
+    try {
+      let id = lastShareId;
+      if (!id && lastQuestion && answer) {
+        const url = await createShareableUrl(lastQuestion, answer);
+        const shareParam = url ? new URL(url).searchParams.get('share') : null;
+        if (shareParam) id = shareParam;
+      }
+      if (!id) return;
+      await fetch(`${API_BASE}/api/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, vote })
+      });
+    } catch (e) {
+      // non-blocking
+    }
+  };
+
   const createShareableUrl = async (question: string, answer: string) => {
     try {
-      const response = await fetch('https://minnebo-ai.vercel.app/api/secure-store', {
+      const response = await fetch(`${API_BASE}/api/secure-store`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, answer })
@@ -98,7 +270,8 @@ function App(): JSX.Element {
       
       const data = await response.json();
       if (data.id) {
-        return `https://minnebo.ai/?share=${data.id}`;
+        setLastShareId(data.id);
+        return `${window.location.origin}/?share=${data.id}`;
       }
     } catch (error) {
       console.error('Failed to create share link:', error);
@@ -116,6 +289,7 @@ function App(): JSX.Element {
       // Wait for state update
       await new Promise(resolve => setTimeout(resolve, 100));
       
+      const { default: html2canvas } = await import('html2canvas');
       const canvas = await html2canvas(document.body, {
         width: 1080,
         height: 1080,
@@ -170,6 +344,19 @@ function App(): JSX.Element {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Load conversation history
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('minnebo_history');
+      if (raw) setHistory(JSON.parse(raw));
+    } catch {}
+  }, []);
+
+  const persistHistory = (items: { id: string, question: string, answer: string, pinned?: boolean, ts: number }[]) => {
+    setHistory(items);
+    try { localStorage.setItem('minnebo_history', JSON.stringify(items.slice(0, 50))); } catch {}
+  };
+
   const updateMetaTags = (question: string, answer: string) => {
     // Sanitize content for title and meta tags
     const sanitizeText = (text: string) => {
@@ -194,7 +381,9 @@ function App(): JSX.Element {
       meta.setAttribute('content', content);
     };
     
-    const imageUrl = `https://minnebo-ai.vercel.app/api/og-image?question=${encodeURIComponent(question)}&answer=${encodeURIComponent(answer)}`;
+    const imageUrl = lastShareId
+      ? `${window.location.origin}/api/og-image?id=${encodeURIComponent(lastShareId)}`
+      : `https://minnebo-ai.vercel.app/api/og-image`;
     
     updateMeta('og:title', safeQuestion);
     updateMeta('og:description', safeAnswer.substring(0, 200) + (safeAnswer.length > 200 ? '...' : ''));
@@ -217,7 +406,7 @@ function App(): JSX.Element {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (uuidRegex.test(shareId)) {
         // Try to fetch from secure storage
-        fetch(`https://minnebo-ai.vercel.app/api/secure-store?id=${shareId}`)
+        fetch(`${API_BASE}/api/secure-store?id=${shareId}`)
           .then(response => {
             if (!response.ok) {
               throw new Error('Failed to load conversation');
@@ -229,6 +418,7 @@ function App(): JSX.Element {
               setLastQuestion(data.question);
               setAnswer(data.answer);
               setIsAnswerComplete(true);
+              setLastShareId(shareId);
               updateMetaTags(data.question, data.answer);
               window.history.replaceState({}, document.title, window.location.pathname);
             }
@@ -256,6 +446,30 @@ function App(): JSX.Element {
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [showSnake]);
+
+  // Close share menu on outside click / Escape
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      const el = shareMenuRef.current;
+      if (showShareMenu && el && !el.contains(e.target as Node)) {
+        setShowShareMenu(false);
+      }
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setShowShareMenu(false);
+        setFollowUpOpen(false);
+        setControlsOpen(false);
+        closeHistory();
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [showShareMenu]);
 
   useEffect(() => {
     if (!showSnake) return;
@@ -304,15 +518,17 @@ function App(): JSX.Element {
         return;
       }
       
-      const userMessage = input;
+      const userMessage = (followUpOpen && followUpText.trim()) ? `${lastQuestion}\n\nFollow-up: ${followUpText.trim()}` : input;
       setLastQuestion(userMessage);
       setInput('');
+      setFollowUpText('');
+      setFollowUpOpen(false);
       setAnswer('');
       setIsTyping(true);
       setIsAnswerComplete(false);
       
       try {
-        const requestBody: any = { message: userMessage };
+        const requestBody: any = { message: userMessage, tone, length: lengthPref === 'auto' ? undefined : lengthPref };
         
         // Include challenge data if we have it
         if (challenge && challengeAnswer) {
@@ -320,7 +536,7 @@ function App(): JSX.Element {
           requestBody.challengeAnswer = challengeAnswer;
         }
         
-        const response = await fetch('https://minnebo-ai.vercel.app/api/chat', {
+        const response = await fetch(`${API_BASE}/api/chat`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -367,6 +583,11 @@ function App(): JSX.Element {
             const { done, value } = await reader.read();
             if (done) {
               setIsAnswerComplete(true);
+              // Save to history
+              const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+              const item = { id, question: userMessage, answer: result, ts: Date.now() };
+              // Keep existing items (including pinned) after the newest
+              persistHistory([item, ...history]);
               break;
             }
             
@@ -383,51 +604,176 @@ function App(): JSX.Element {
     }
   };
 
+  // Chat input styling aligned with fancy pills
+  const [chatWidth, setChatWidth] = useState<number | undefined>(undefined);
+
+  const chatShell = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    width: chatWidth ? `${chatWidth}px` : '100%',
+    padding: '6px',
+    borderRadius: '16px',
+    background: 'rgba(255,255,255,0.15)',
+    border: '1px solid rgba(255,255,255,0.35)',
+    boxShadow: '0 6px 14px rgba(0,0,0,0.12)',
+    backdropFilter: 'blur(4px)'
+  } as const;
+
+  const inputPill = {
+    flex: 1,
+    minWidth: '220px',
+    padding: '10px 14px',
+    borderRadius: '12px',
+    border: '2px solid transparent',
+    backgroundColor: '#FFFFFF',
+    backgroundImage: 'linear-gradient(#FFFFFF, #FFFFFF), linear-gradient(135deg, #03BFF3, #310080)',
+    backgroundOrigin: 'border-box',
+    backgroundClip: 'padding-box, border-box',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    fontFamily: 'Tahoma, sans-serif',
+    outline: 'none',
+    color: '#200F3B' 
+  } as const;
+
+  const sendPill = (hovered: boolean) => {
+    const fill = hovered ? '#00C7EB' : '#200F3B';
+    return {
+      padding: '10px 16px',
+      minWidth: '52px',
+      borderRadius: '12px',
+      border: '2px solid transparent',
+      backgroundImage: `linear-gradient(${fill}, ${fill}), linear-gradient(135deg, #03BFF3, #310080)`,
+      backgroundOrigin: 'border-box',
+      backgroundClip: 'padding-box, border-box',
+      color: 'white',
+      cursor: 'pointer',
+      fontWeight: 'bold',
+      fontFamily: 'Tahoma, sans-serif',
+      fontSize: '18px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: '0 6px 16px rgba(0,0,0,0.18)',
+      transition: 'transform 0.12s ease, filter 0.12s ease',
+      transform: hovered ? 'translateY(-1px)' : 'translateY(0)'
+    } as const;
+  };
+
+  const widthSizerRef = useRef<HTMLDivElement | null>(null);
+  const heightSizerRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const [inputHeight, setInputHeight] = useState<number | undefined>(undefined);
+  const inputPlaceholder = lastQuestion || "Cast your question into the flow...";
+
+  const measureAndSetWidth = () => {
+    if (!widthSizerRef.current) return;
+    const content = (input || inputPlaceholder) + ' ';
+    widthSizerRef.current.textContent = content;
+    const textW = widthSizerRef.current.offsetWidth;
+    const sendAndGaps = 52 + 8; // approx send button width + gap
+    const shellPadding = 12; // left+right padding of shell
+    const extra = 24; // breathing room
+    const minW = 360;
+    const maxW = Math.min((isMobile ? window.innerWidth - 32 : 1000), 1200);
+    const desired = Math.min(Math.max(minW, textW + sendAndGaps + shellPadding + extra), maxW);
+    setChatWidth(desired);
+  };
+
+  const measureAndSetHeight = () => {
+    const max = 180; // allow multiline up to ~6 lines
+    const el = inputRef.current;
+    const s = heightSizerRef.current;
+    if (!el || !s) return;
+    // Mirror content into sizer to measure total height including padding
+    s.textContent = (input || inputPlaceholder) + ' ';
+    const needed = Math.min(s.offsetHeight, max);
+    setInputHeight(needed);
+  };
+
+  useEffect(() => {
+    measureAndSetWidth();
+    measureAndSetHeight();
+  }, [input, inputPlaceholder, isMobile]);
+  useEffect(() => {
+    const onResize = () => { measureAndSetWidth(); measureAndSetHeight(); };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   const chatInput = (
-    <div style={{ display: 'flex', gap: '10px', width: '100%', maxWidth: '500px', flexWrap: 'wrap' }}>
-      <input
-        type="text"
+    <div style={chatShell as any}>
+      {/* Hidden sizers: width (no wrap) and height (wrap) */}
+      <div
+        ref={widthSizerRef}
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          visibility: 'hidden',
+          zIndex: -1,
+          whiteSpace: 'pre',
+          boxSizing: 'border-box',
+          // mirror textarea style
+          padding: (inputPill as any).padding,
+          fontSize: (inputPill as any).fontSize,
+          fontWeight: (inputPill as any).fontWeight,
+          fontFamily: (inputPill as any).fontFamily,
+          border: (inputPill as any).border,
+          borderRadius: (inputPill as any).borderRadius,
+        }}
+      >
+        {(input || inputPlaceholder) + ' '}
+      </div>
+      <div
+        ref={heightSizerRef}
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          visibility: 'hidden',
+          zIndex: -1,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          boxSizing: 'border-box',
+          width: '100%',
+          padding: (inputPill as any).padding,
+          fontSize: (inputPill as any).fontSize,
+          fontWeight: (inputPill as any).fontWeight,
+          fontFamily: (inputPill as any).fontFamily,
+          lineHeight: 1.25,
+          border: (inputPill as any).border,
+          borderRadius: (inputPill as any).borderRadius,
+        }}
+      >
+        {(input || inputPlaceholder) + ' '}
+      </div>
+      <textarea
+        ref={inputRef}
         value={input}
         onChange={(e) => setInput(e.target.value)}
-        onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-        placeholder={lastQuestion || "Cast your question into the flow..."}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+        }}
+        placeholder={inputPlaceholder}
         className="thick-cursor"
+        aria-label="Ask a question"
+        rows={1}
         style={{
-          padding: '12px 16px',
-          fontSize: '16px',
-          border: 'none',
-          borderRadius: '8px',
+          ...(inputPill as any),
+          resize: 'none',
+          lineHeight: 1.25,
           width: '100%',
-          minWidth: '250px',
-          flex: '1',
-          outline: 'none',
-          fontFamily: 'Tahoma, sans-serif',
-          backgroundColor: 'rgba(255,255,255,0.9)',
-          fontWeight: 'bold',
-          caretColor: '#FF69B4',
-          color: '#200F3B'
+          boxSizing: 'border-box',
+          height: inputHeight ? `${inputHeight}px` : undefined,
+          overflow: inputHeight && inputHeight >= 180 ? 'auto' : 'hidden'
         }}
       />
       <button
         onClick={handleSend}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        style={{
-          padding: '12px 16px',
-          minWidth: '50px',
-          fontSize: '20px',
-          backgroundColor: isHovered ? '#00C7EB' : '#200F3B',
-          color: 'white',
-          border: 'none',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          fontFamily: 'Tahoma, sans-serif',
-          fontWeight: 'bold',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'background-color 0.2s ease'
-        }}
+        aria-label="Send question"
+        style={sendPill(isHovered) as any}
       >
         ➤
       </button>
@@ -508,6 +854,142 @@ function App(): JSX.Element {
       fontFamily: 'Tahoma, sans-serif',
       position: 'relative'
     }}>
+      {/* History Panel */}
+      {(historyOpen || historyAnimatingOut) && (
+        <>
+          {/* Dim overlay */}
+          <div onClick={closeHistory} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)', zIndex: 1100, opacity: historyOpen ? 1 : 0, transition: 'opacity 0.2s ease' }} />
+          {/* Glass panel */}
+          <div style={{ position: 'fixed', top: 0, left: 0, bottom: 0, width: isMobile ? '88vw' : '360px', zIndex: 1110, padding: '16px', transform: historyOpen ? 'translate(0,0)' : (isMobile ? 'translate(0, 16px)' : 'translate(-16px, 0)'), opacity: historyOpen ? 1 : 0, transition: 'transform 0.2s ease, opacity 0.2s ease' }}>
+            <div
+              tabIndex={0}
+              ref={historyListRef}
+              onKeyDown={handleHistoryKey}
+              style={{
+                height: '100%',
+                borderRadius: '16px',
+                backgroundColor: 'rgba(255,255,255,0.55)',
+                backgroundImage: 'linear-gradient(rgba(255,255,255,0.66), rgba(255,255,255,0.4))',
+                boxShadow: '0 12px 30px rgba(0,0,0,0.25)',
+                border: '2px solid transparent',
+                backgroundClip: 'padding-box, border-box',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+            }}>
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <strong style={{ color: '#200F3B' }}>History</strong>
+                  <span style={{ fontSize: 12, color: '#555' }}>({history.length})</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button onClick={() => { persistHistory([]); }} disabled={history.length === 0} title="Clear all" aria-label="Clear all"
+                    style={{ border: 'none', background: 'transparent', color: history.length ? '#310080' : '#aaa', cursor: history.length ? 'pointer' : 'default' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                  <button onClick={closeHistory} aria-label="Close history" style={{ border: 'none', background: 'transparent', color: '#200F3B', cursor: 'pointer' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Search */}
+              <div style={{ padding: '10px 12px', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+                <input
+                  placeholder="Search history..."
+                  aria-label="Search history"
+                  value={historyQuery}
+                  onChange={(e) => setHistoryQuery(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.12)', outline: 'none' }}
+                />
+              </div>
+
+              {/* List */}
+              <div style={{ overflowY: 'auto', padding: '8px 10px', flex: 1 }}>
+                {history.length === 0 && <div style={{ color: '#555', padding: '12px' }}>No conversations yet.</div>}
+                {history
+                  .slice()
+                  .sort((a, b) => (Number(!!b.pinned) - Number(!!a.pinned)) || (b.ts - a.ts))
+                  .filter(item => {
+                    const q = historyQuery.trim().toLowerCase();
+                    if (!q) return true;
+                    return item.question.toLowerCase().includes(q) || item.answer.toLowerCase().includes(q);
+                  })
+                  .map((item, idx) => (
+                    <div
+                      key={item.id}
+                      ref={el => (historyItemRefs.current[idx] = el)}
+                      role="option"
+                      aria-selected={historyFocusIdx === idx}
+                      style={{ background: 'rgba(255,255,255,0.85)', border: historyFocusIdx === idx ? '2px solid #03BFF3' : '1px solid rgba(0,0,0,0.06)', borderRadius: 12, padding: 10, marginBottom: 8, boxShadow: historyFocusIdx === idx ? '0 6px 16px rgba(0,0,0,0.10)' : '0 4px 12px rgba(0,0,0,0.06)' }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                        <button
+                          onClick={() => {
+                            setLastQuestion(item.question);
+                            setAnswer(item.answer);
+                            setIsAnswerComplete(true);
+                            setShowShareMenu(false);
+                            setLastShareId(null);
+                            updateMetaTags(item.question, item.answer);
+                          }}
+                          style={{ flex: 1, textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', color: '#200F3B' }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {item.pinned && (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="#310080" stroke="#310080" strokeWidth="0" aria-hidden="true"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                            )}
+                            <div style={{ fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.question}</div>
+                          </div>
+                          <div style={{ fontSize: 12, color: '#555', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.answer}</div>
+                          <div style={{ fontSize: 11, color: '#777', marginTop: 4 }}>{new Date(item.ts).toLocaleString()}</div>
+                        </button>
+                        <div style={{ display: 'flex', alignItems: 'start', gap: 6 }}>
+                          <button
+                            title="Copy"
+                            onClick={() => {
+                              const text = `Q: ${item.question}\n\nA: ${item.answer}`;
+                              if (navigator.clipboard && navigator.clipboard.writeText) {
+                                navigator.clipboard.writeText(text).catch(() => fallbackCopyTextToClipboard(text));
+                              } else {
+                                fallbackCopyTextToClipboard(text);
+                              }
+                            }}
+                            style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#200F3B' }}
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                          </button>
+                          <button
+                            aria-pressed={!!item.pinned}
+                            onClick={() => {
+                              const updated = history.map(h => h.id === item.id ? { ...h, pinned: !h.pinned } : h);
+                              persistHistory(updated);
+                            }}
+                            title={item.pinned ? 'Unpin' : 'Pin'}
+                            style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: item.pinned ? '#310080' : '#888' }}
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                          </button>
+                          <button
+                            title="Delete"
+                            onClick={() => {
+                              const updated = history.filter(h => h.id !== item.id);
+                              persistHistory(updated);
+                            }}
+                            style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#C22' }}
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
       {/* Flash Message */}
       {showFlashMessage && (
         <>
@@ -629,7 +1111,31 @@ function App(): JSX.Element {
         
         {!isMobile && (
           <div style={{ marginBottom: '20px', width: '100%', display: 'flex', justifyContent: 'center' }}>
-            {chatInput}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+                <button aria-expanded={controlsOpen} onClick={() => setControlsOpen(!controlsOpen)} style={{ display: 'flex', alignItems: 'center', padding: '8px 14px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.12)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
+                  Customize: {summaryText()} <IconChevron open={controlsOpen} />
+                </button>
+                <button onClick={() => setHistoryOpen(!historyOpen)} aria-pressed={historyOpen} aria-label="Toggle history" style={{ padding: '8px 12px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.6)', fontWeight: 'bold', background: 'rgba(255,255,255,0.12)', color: 'white' }}>History</button>
+              </div>
+              {controlsOpen && (
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <div role="group" aria-label="Tone" style={pillGroup as any}>
+                    <button aria-pressed={tone==='zen'} onClick={() => selectTone('zen')} style={pill(tone === 'zen', toneGradients.zen)}><IconLeaf />Zen</button>
+                    <button aria-pressed={tone==='guide'} onClick={() => selectTone('guide')} style={pill(tone === 'guide', toneGradients.guide)}><IconCompass />Guide</button>
+                    <button aria-pressed={tone==='stoic'} onClick={() => selectTone('stoic')} style={pill(tone === 'stoic', toneGradients.stoic)}><IconColumn />Stoic</button>
+                    <button aria-pressed={tone==='sufi'} onClick={() => selectTone('sufi')} style={pill(tone === 'sufi', toneGradients.sufi)}><IconSwirl />Sufi</button>
+                    <button aria-pressed={tone==='plain'} onClick={() => selectTone('plain')} style={pill(tone === 'plain', toneGradients.plain)}><IconText />Plain</button>
+                  </div>
+                  <div role="group" aria-label="Length" style={pillGroup as any}>
+                    <button aria-pressed={lengthPref==='auto'} onClick={() => selectLength('auto')} style={pill(lengthPref === 'auto', lengthGradients.auto)}><IconWand />Auto</button>
+                    <button aria-pressed={lengthPref==='short'} onClick={() => selectLength('short')} style={pill(lengthPref === 'short', lengthGradients.short)}><IconShort />Short</button>
+                    <button aria-pressed={lengthPref==='long'} onClick={() => selectLength('long')} style={pill(lengthPref === 'long', lengthGradients.long)}><IconLong />Long</button>
+                  </div>
+                </div>
+              )}
+              {chatInput}
+            </div>
           </div>
         )}
         
@@ -702,7 +1208,7 @@ function App(): JSX.Element {
             alignItems: 'center',
             gap: '10px'
           }}>
-            The silence gathers before the word is born
+            <span aria-live="polite">The silence gathers before the word is born</span>
             <div style={{
               display: 'flex',
               gap: '3px'
@@ -737,23 +1243,39 @@ function App(): JSX.Element {
         
         {answer && (
           <div style={{ position: 'relative' }}>
-            <div 
+            <div
               style={{
-                backgroundColor: 'rgba(255,255,255,0.8)',
-                padding: '20px',
+                padding: '16px',
                 borderRadius: '12px',
                 fontSize: '18px',
                 lineHeight: '1.6',
-                maxWidth: isMobile ? '90vw' : '500px',
+                maxWidth: isMobile ? '90vw' : '700px',
                 width: isMobile ? '100%' : 'auto',
                 textAlign: 'left',
                 fontFamily: 'Tahoma, sans-serif',
                 fontWeight: 'normal',
                 color: '#200F3B',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                border: '2px solid transparent',
+                backgroundColor: '#FFFFFF',
+                backgroundImage: 'linear-gradient(#FFFFFF, #FFFFFF), linear-gradient(135deg, #03BFF3, #310080)',
+                backgroundOrigin: 'border-box',
+                backgroundClip: 'padding-box, border-box',
+                boxShadow: '0 6px 16px rgba(0,0,0,0.12)'
               }}
               dangerouslySetInnerHTML={{ __html: parseMarkdown(answer) }}
             />
+            {isAnswerComplete && (
+              <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
+                <button onClick={() => { setInput(lastQuestion); setFollowUpOpen(false); handleSend(); }} style={{ padding: '6px 10px', borderRadius: '6px', border: 'none', background: '#200F3B', color: 'white', fontWeight: 'bold' }}>Regenerate</button>
+                <button onClick={() => setFollowUpOpen(!followUpOpen)} style={{ padding: '6px 10px', borderRadius: '6px', border: 'none', background: '#200F3B', color: 'white', fontWeight: 'bold' }}>Follow-up</button>
+              </div>
+            )}
+            {followUpOpen && (
+              <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
+                <input aria-label="Follow-up" value={followUpText} onChange={(e) => setFollowUpText(e.target.value)} placeholder="Add a follow-up..." style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid #DDD' }} />
+                <button onClick={handleSend} style={{ padding: '6px 10px', borderRadius: '6px', border: 'none', background: '#200F3B', color: 'white', fontWeight: 'bold' }}>Send</button>
+              </div>
+            )}
             <div style={{
               position: 'absolute',
               bottom: '-36px',
@@ -782,7 +1304,7 @@ function App(): JSX.Element {
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.stroke = '#310080'}
                 onMouseLeave={(e) => e.currentTarget.style.stroke = 'white'}
-                title="Copy to clipboard"
+                role="button" aria-label="Copy to clipboard" title="Copy to clipboard"
               >
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -792,6 +1314,7 @@ function App(): JSX.Element {
                   setFlashMessageText('The words arrive in harmony\nwith the moment.');
                   setShowFlashMessage(true);
                   setTimeout(() => setShowFlashMessage(false), 2000);
+                  handleVote('up');
                 }}
                 width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2"
                 style={{
@@ -800,7 +1323,7 @@ function App(): JSX.Element {
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.stroke = '#310080'; e.currentTarget.style.fill = '#310080'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.stroke = 'white'; e.currentTarget.style.fill = 'white'; }}
-                title="Good response"
+                role="button" aria-label="Good response" title="Good response"
               >
                 <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
               </svg>
@@ -809,6 +1332,7 @@ function App(): JSX.Element {
                   setFlashMessageText('The words stir turbulence\nwhere stillness was sought.');
                   setShowFlashMessage(true);
                   setTimeout(() => setShowFlashMessage(false), 2000);
+                  handleVote('down');
                 }}
                 width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2"
                 style={{
@@ -817,7 +1341,7 @@ function App(): JSX.Element {
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.stroke = '#310080'; e.currentTarget.style.fill = '#310080'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.stroke = 'white'; e.currentTarget.style.fill = 'white'; }}
-                title="Poor response"
+                role="button" aria-label="Poor response" title="Poor response"
               >
                 <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
               </svg>
@@ -851,7 +1375,7 @@ function App(): JSX.Element {
             display: 'flex',
             justifyContent: 'flex-end'
           }}>
-            <div style={{
+            <div ref={shareMenuRef} style={{
               position: 'absolute',
               top: '10px',
               right: '48px',
@@ -966,11 +1490,36 @@ function App(): JSX.Element {
           display: 'flex',
           justifyContent: 'center'
         }}>
-          {chatInput}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <button aria-expanded={controlsOpen} onClick={() => setControlsOpen(!controlsOpen)} style={{ display: 'flex', alignItems: 'center', padding: '8px 14px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.7)', background: 'rgba(255,255,255,0.14)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
+                Customize: {summaryText()} <IconChevron open={controlsOpen} />
+              </button>
+            </div>
+            {controlsOpen && (
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                <div role="group" aria-label="Tone" style={pillGroup as any}>
+                  <button aria-pressed={tone==='zen'} onClick={() => selectTone('zen')} style={pill(tone === 'zen', toneGradients.zen)}><IconLeaf />Zen</button>
+                  <button aria-pressed={tone==='guide'} onClick={() => selectTone('guide')} style={pill(tone === 'guide', toneGradients.guide)}><IconCompass />Guide</button>
+                  <button aria-pressed={tone==='stoic'} onClick={() => selectTone('stoic')} style={pill(tone === 'stoic', toneGradients.stoic)}><IconColumn />Stoic</button>
+                  <button aria-pressed={tone==='sufi'} onClick={() => selectTone('sufi')} style={pill(tone === 'sufi', toneGradients.sufi)}><IconSwirl />Sufi</button>
+                  <button aria-pressed={tone==='plain'} onClick={() => selectTone('plain')} style={pill(tone === 'plain', toneGradients.plain)}><IconText />Plain</button>
+                </div>
+                <div role="group" aria-label="Length" style={pillGroup as any}>
+                  <button aria-pressed={lengthPref==='auto'} onClick={() => selectLength('auto')} style={pill(lengthPref === 'auto', lengthGradients.auto)}><IconWand />Auto</button>
+                  <button aria-pressed={lengthPref==='short'} onClick={() => selectLength('short')} style={pill(lengthPref === 'short', lengthGradients.short)}><IconShort />Short</button>
+                  <button aria-pressed={lengthPref==='long'} onClick={() => selectLength('long')} style={pill(lengthPref === 'long', lengthGradients.long)}><IconLong />Long</button>
+                </div>
+              </div>
+            )}
+            {chatInput}
+          </div>
         </div>
       )}
     </div>
   );
 }
+
+// History panel component inside same file for simplicity
 
 export default App;

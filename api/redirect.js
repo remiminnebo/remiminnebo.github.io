@@ -12,14 +12,18 @@ function escapeHtml(text) {
 }
 
 // Validate Host header to prevent DNS rebinding
-function validateHost(req) {
-  const host = req.headers.host;
-  const allowedHosts = ['minnebo.ai', 'www.minnebo.ai', 'minnebo-ai.vercel.app'];
-  
-  if (!host || !allowedHosts.includes(host.toLowerCase())) {
-    return false;
+function getAllowedHosts() {
+  const env = process.env.ALLOWED_HOSTS;
+  if (env && env.trim().length > 0) {
+    return env.split(',').map(h => h.trim().toLowerCase()).filter(Boolean);
   }
-  return true;
+  return ['minnebo.ai', 'www.minnebo.ai', 'minnebo-ai.vercel.app', 'localhost:3000'];
+}
+
+function validateHost(req) {
+  const host = (req.headers.host || '').toLowerCase();
+  const allowedHosts = getAllowedHosts();
+  return Boolean(host && allowedHosts.includes(host));
 }
 
 export default async function handler(req, res) {
