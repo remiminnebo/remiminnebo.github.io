@@ -888,7 +888,28 @@ function App(): JSX.Element {
             }}>
               {/* Header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {/* macOS traffic lights */}
+                  <div role="group" aria-label="Window controls" style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      onClick={closeHistory}
+                      title="Close"
+                      aria-label="Close"
+                      style={{ width: 12, height: 12, borderRadius: '50%', background: '#FF5F57', border: '1px solid rgba(0,0,0,0.15)', cursor: 'pointer' }}
+                    />
+                    <button
+                      onClick={closeHistory}
+                      title="Minimize"
+                      aria-label="Minimize"
+                      style={{ width: 12, height: 12, borderRadius: '50%', background: '#FFBD2E', border: '1px solid rgba(0,0,0,0.15)', cursor: 'pointer' }}
+                    />
+                    <button
+                      onClick={closeHistory}
+                      title="Zoom"
+                      aria-label="Zoom"
+                      style={{ width: 12, height: 12, borderRadius: '50%', background: '#28C840', border: '1px solid rgba(0,0,0,0.15)', cursor: 'pointer' }}
+                    />
+                  </div>
                   <strong style={{ color: '#200F3B' }}>History</strong>
                   <span style={{ fontSize: 12, color: '#555' }}>({history.length})</span>
                 </div>
@@ -896,9 +917,6 @@ function App(): JSX.Element {
                   <button onClick={() => { persistHistory([]); }} disabled={history.length === 0} title="Clear all" aria-label="Clear all"
                     style={{ border: 'none', background: 'transparent', color: history.length ? '#310080' : '#aaa', cursor: history.length ? 'pointer' : 'default' }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                  </button>
-                  <button onClick={closeHistory} aria-label="Close history" style={{ border: 'none', background: 'transparent', color: '#200F3B', cursor: 'pointer' }}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </div>
               </div>
@@ -931,9 +949,9 @@ function App(): JSX.Element {
                       ref={el => (historyItemRefs.current[idx] = el)}
                       role="option"
                       aria-selected={historyFocusIdx === idx}
-                      style={{ background: 'rgba(255,255,255,0.85)', border: historyFocusIdx === idx ? '2px solid #03BFF3' : '1px solid rgba(0,0,0,0.06)', borderRadius: 12, padding: 10, marginBottom: 8, boxShadow: historyFocusIdx === idx ? '0 6px 16px rgba(0,0,0,0.10)' : '0 4px 12px rgba(0,0,0,0.06)' }}
+                      style={{ background: 'rgba(255,255,255,0.85)', border: historyFocusIdx === idx ? '2px solid #03BFF3' : '1px solid rgba(0,0,0,0.06)', borderRadius: 12, padding: 10, marginBottom: 8, boxShadow: historyFocusIdx === idx ? '0 6px 16px rgba(0,0,0,0.10)' : '0 4px 12px rgba(0,0,0,0.06)', overflow: 'hidden' }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', minWidth: 0 }}>
                         <button
                           onClick={() => {
                             setLastQuestion(item.question);
@@ -943,15 +961,15 @@ function App(): JSX.Element {
                             setLastShareId(null);
                             updateMetaTags(item.question, item.answer);
                           }}
-                          style={{ flex: 1, textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', color: '#200F3B' }}
+                          style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', color: '#200F3B', padding: 0 }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                             {item.pinned && (
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="#310080" stroke="#310080" strokeWidth="0" aria-hidden="true"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
                             )}
                             <div style={{ fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.question}</div>
                           </div>
-                          <div style={{ fontSize: 12, color: '#555', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.answer}</div>
+                          <div style={{ fontSize: 12, color: '#555', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{item.answer}</div>
                           <div style={{ fontSize: 11, color: '#777', marginTop: 4 }}>{new Date(item.ts).toLocaleString()}</div>
                         </button>
                         <div style={{ display: 'flex', alignItems: 'start', gap: 6 }}>
