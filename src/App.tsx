@@ -147,14 +147,25 @@ function App(): JSX.Element {
     return `${toneLabel} • ${lengthLabel}`;
   };
 
+  // Keep customize menu open slightly longer after selection
+  const controlsCloseTimer = useRef<number | null>(null);
+  const scheduleControlsClose = (delay = 1200) => {
+    if (controlsCloseTimer.current) {
+      window.clearTimeout(controlsCloseTimer.current);
+    }
+    controlsCloseTimer.current = window.setTimeout(() => {
+      setControlsOpen(false);
+      controlsCloseTimer.current = null;
+    }, delay);
+  };
+
   const selectTone = (t: 'zen' | 'guide' | 'stoic' | 'sufi' | 'plain') => {
     setTone(t);
-    // Auto fold after a quick selection
-    setTimeout(() => setControlsOpen(false), 180);
+    scheduleControlsClose(1200);
   };
   const selectLength = (l: 'auto' | 'short' | 'long') => {
     setLengthPref(l);
-    setTimeout(() => setControlsOpen(false), 180);
+    scheduleControlsClose(1200);
   };
 
   const closeHistory = () => {
@@ -477,6 +488,10 @@ function App(): JSX.Element {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKey);
+      if (controlsCloseTimer.current) {
+        window.clearTimeout(controlsCloseTimer.current);
+        controlsCloseTimer.current = null;
+      }
     };
   }, [showShareMenu]);
 
@@ -1221,50 +1236,12 @@ function App(): JSX.Element {
           </div>
         )}
         
-        {/* Typing Indicator */}
+        {/* Typing Indicator: simple three fading dots */}
         {isTyping && (
-          <div style={{
-            backgroundColor: 'rgba(255,255,255,0.8)',
-            padding: '20px',
-            borderRadius: '12px',
-            fontSize: '18px',
-            maxWidth: isMobile ? '90vw' : '500px',
-            width: isMobile ? '100%' : 'auto',
-            color: '#200F3B',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px'
-          }}>
-            <span aria-live="polite">The silence gathers before the word is born</span>
-            <div style={{
-              display: 'flex',
-              gap: '3px'
-            }}>
-              <div style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                backgroundColor: '#200F3B',
-                animation: 'pulse 1.4s ease-in-out infinite both',
-                animationDelay: '0s'
-              }} />
-              <div style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                backgroundColor: '#200F3B',
-                animation: 'pulse 1.4s ease-in-out infinite both',
-                animationDelay: '0.2s'
-              }} />
-              <div style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                backgroundColor: '#200F3B',
-                animation: 'pulse 1.4s ease-in-out infinite both',
-                animationDelay: '0.4s'
-              }} />
-            </div>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '8px' }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#200F3B', opacity: 0.9, animation: 'pulse 1.2s ease-in-out infinite both', animationDelay: '0s' }} />
+            <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#200F3B', opacity: 0.75, animation: 'pulse 1.2s ease-in-out infinite both', animationDelay: '0.2s' }} />
+            <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#200F3B', opacity: 0.6, animation: 'pulse 1.2s ease-in-out infinite both', animationDelay: '0.4s' }} />
           </div>
         )}
         
