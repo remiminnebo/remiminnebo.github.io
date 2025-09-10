@@ -29,6 +29,7 @@ function App(): JSX.Element {
   const [followUpText, setFollowUpText] = useState('');
   const [lastShareId, setLastShareId] = useState<string | null>(null);
   const shareMenuRef = useRef<HTMLDivElement | null>(null);
+  const [shareLink, setShareLink] = useState<string | null>(null);
   const [controlsOpen, setControlsOpen] = useState(false);
 
   // Fancy pill-style button styling for selectors
@@ -125,6 +126,12 @@ function App(): JSX.Element {
   const IconLong = () => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ marginRight: 6 }}>
       <path d="M4 6h12M4 12h14M4 18h10"/>
+    </svg>
+  );
+  const IconPlus = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ marginRight: 6 }}>
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   );
 
@@ -1266,12 +1273,7 @@ function App(): JSX.Element {
               }}
               dangerouslySetInnerHTML={{ __html: parseMarkdown(answer) }}
             />
-            {isAnswerComplete && (
-              <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
-                <button onClick={() => { setInput(lastQuestion); setFollowUpOpen(false); handleSend(); }} style={{ padding: '6px 10px', borderRadius: '6px', border: 'none', background: '#200F3B', color: 'white', fontWeight: 'bold' }}>Regenerate</button>
-                <button onClick={() => setFollowUpOpen(!followUpOpen)} style={{ padding: '6px 10px', borderRadius: '6px', border: 'none', background: '#200F3B', color: 'white', fontWeight: 'bold' }}>Follow-up</button>
-              </div>
-            )}
+            {/* Actions bar (icons left, controls right) */}
             {followUpOpen && (
               <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
                 <input aria-label="Follow-up" value={followUpText} onChange={(e) => setFollowUpText(e.target.value)} placeholder="Add a follow-up..." style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid #DDD' }} />
@@ -1280,11 +1282,14 @@ function App(): JSX.Element {
             )}
             <div style={{
               position: 'absolute',
-              bottom: '-36px',
+              bottom: '-42px',
               left: '0px',
+              right: '0px',
               display: isAnswerComplete ? 'flex' : 'none',
-              gap: '16px'
+              alignItems: 'center',
+              justifyContent: 'space-between'
             }}>
+              <div style={{ display: 'flex', gap: '16px' }}>
               <svg
                 onClick={() => {
                   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1348,7 +1353,17 @@ function App(): JSX.Element {
                 <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
               </svg>
               <svg
-                onClick={() => setShowShareMenu(!showShareMenu)}
+                onClick={async () => {
+                  if (!showShareMenu) {
+                    try {
+                      const url = await createShareableUrl(lastQuestion, answer);
+                      if (url) setShareLink(url);
+                    } catch {
+                      setShareLink(null);
+                    }
+                  }
+                  setShowShareMenu(!showShareMenu);
+                }}
                 width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2"
                 style={{
                   cursor: 'pointer',
@@ -1364,6 +1379,24 @@ function App(): JSX.Element {
                 <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
                 <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
               </svg>
+              </div>
+              <div role="group" aria-label="Answer actions" style={pillGroup as any}>
+                <button
+                  onClick={() => { setInput(lastQuestion); setFollowUpOpen(false); handleSend(); }}
+                  style={pill(false, toneGradients.guide) as any}
+                  title="Regenerate"
+                >
+                  <IconWand />Regenerate
+                </button>
+                <button
+                  aria-pressed={followUpOpen}
+                  onClick={() => setFollowUpOpen(!followUpOpen)}
+                  style={pill(followUpOpen, lengthGradients.auto) as any}
+                  title="Follow-up"
+                >
+                  <IconPlus />Follow-up
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1372,110 +1405,86 @@ function App(): JSX.Element {
         {showShareMenu && answer && (
           <div style={{
             position: 'relative',
-            maxWidth: isMobile ? '90vw' : '500px',
+            maxWidth: isMobile ? '90vw' : '700px',
             width: isMobile ? '100%' : 'auto',
             display: 'flex',
             justifyContent: 'flex-end'
           }}>
             <div ref={shareMenuRef} style={{
               position: 'absolute',
-              top: '10px',
-              right: '48px',
-              backgroundColor: 'rgba(255,255,255,0.9)',
-              borderRadius: '8px',
-              padding: '8px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-              zIndex: 100
+              bottom: '-148px',
+              right: '0px',
+              borderRadius: '12px',
+              border: '2px solid transparent',
+              backgroundColor: '#FFFFFF',
+              backgroundImage: 'linear-gradient(#FFFFFF, #FFFFFF), linear-gradient(135deg, #03BFF3, #310080)',
+              backgroundOrigin: 'border-box',
+              backgroundClip: 'padding-box, border-box',
+              padding: '12px',
+              minWidth: isMobile ? 'calc(90vw - 24px)' : '360px',
+              boxShadow: '0 8px 20px rgba(0,0,0,0.18)',
+              zIndex: 120
             }}>
-              <button
-                onClick={async () => {
-                  try {
-                    console.log('Share button clicked, window width:', window.innerWidth);
-                    const shareUrl = await createShareableUrl(lastQuestion, answer);
-                    
-                    if (!shareUrl) {
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <strong style={{ color: '#200F3B' }}>Share</strong>
+                <button onClick={() => setShowShareMenu(false)} aria-label="Close share" style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#200F3B' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                <input readOnly value={shareLink || ''} placeholder="Generating link..." style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.12)', color: '#200F3B' }} />
+                <button
+                  onClick={async () => {
+                    try {
+                      const url = shareLink || await createShareableUrl(lastQuestion, answer);
+                      if (!url) throw new Error('No URL');
+                      if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(url);
+                      } else {
+                        fallbackCopyTextToClipboard(url);
+                      }
+                      setFlashMessageText('The link flows\ninto your vessel.');
+                      setShowFlashMessage(true);
+                      setTimeout(() => setShowFlashMessage(false), 2000);
+                    } catch (e) {
+                      setFlashMessageText('The path to sharing\nremains clouded.');
+                      setShowFlashMessage(true);
+                      setTimeout(() => setShowFlashMessage(false), 2000);
+                    }
+                  }}
+                  style={pill(true, toneGradients.guide) as any}
+                >
+                  Copy Link
+                </button>
+              </div>
+              {isMobile && (
+                <button
+                  onClick={async () => {
+                    try {
+                      const url = shareLink || await createShareableUrl(lastQuestion, answer);
+                      const text = `${lastQuestion}\n\n${answer}\n\nCheck out: ${url}`;
+                      if (navigator.share) {
+                        try {
+                          await navigator.share({ title: 'Wisdom from minnebo.ai', text });
+                        } catch {
+                          window.location.href = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                        }
+                      } else {
+                        window.location.href = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                      }
+                      setShowShareMenu(false);
+                    } catch (e) {
                       setFlashMessageText('The path to sharing\nremains clouded.');
                       setShowFlashMessage(true);
                       setTimeout(() => setShowFlashMessage(false), 2000);
                       setShowShareMenu(false);
-                      return;
                     }
-                    console.log('Share URL created:', shareUrl);
-                    
-                    if (window.innerWidth < 768) {
-                      // WhatsApp share for mobile
-                      const text = `${lastQuestion}\n\n${answer}\n\nCheck out: ${shareUrl}`;
-                      console.log('Sharing to WhatsApp:', text);
-                      
-                      // Try multiple approaches
-                      if (navigator.share) {
-                        try {
-                          await navigator.share({
-                            title: 'Wisdom from minnebo.ai',
-                            text: text
-                          });
-                          console.log('Native share successful');
-                        } catch (error) {
-                          console.log('Native share failed, trying WhatsApp URL');
-                          const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
-                          window.location.href = whatsappUrl;
-                        }
-                      } else {
-                        console.log('No native share, using WhatsApp URL');
-                        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
-                        window.location.href = whatsappUrl;
-                      }
-                    } else {
-                      // Copy to clipboard for desktop
-                      if (navigator.clipboard && navigator.clipboard.writeText) {
-                        try {
-                          await navigator.clipboard.writeText(shareUrl);
-                          setFlashMessageText('The link flows\ninto your vessel.');
-                          setShowFlashMessage(true);
-                          setTimeout(() => setShowFlashMessage(false), 2000);
-                        } catch (error) {
-                          fallbackCopyTextToClipboard(shareUrl);
-                        }
-                      } else {
-                        fallbackCopyTextToClipboard(shareUrl);
-                      }
-                    }
-                    
-                    setShowShareMenu(false);
-                  } catch (error) {
-                    console.error('Share error:', error);
-                    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                    
-                    if (errorMessage.includes('Rate limit')) {
-                      setFlashMessageText('The flow slows.\nPatience brings clarity.');
-                    } else if (errorMessage.includes('too long') || errorMessage.includes('required')) {
-                      setFlashMessageText('The message seeks\nits proper form.');
-                    } else {
-                      setFlashMessageText('The path to sharing\nremains clouded.');
-                    }
-                    
-                    setShowFlashMessage(true);
-                    setTimeout(() => setShowFlashMessage(false), 2000);
-                    setShowShareMenu(false);
-                  }
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  color: '#200F3B',
-                  borderRadius: '4px'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.1)'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                {window.innerWidth < 768 ? 'Share to WhatsApp' : 'Copy Link'}
-              </button>
+                  }}
+                  style={{ marginTop: 6, padding: '10px 12px', borderRadius: 10, border: 'none', background: '#25D366', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  Share to WhatsApp
+                </button>
+              )}
             </div>
           </div>
         )}
