@@ -2,7 +2,8 @@ import logo from './logo.svg';
 import { useState, useEffect, useRef } from 'react';
 
 function App(): JSX.Element {
-  const API_BASE = (process.env.REACT_APP_API_BASE as string) || '';
+  const API_BASE = (process.env.REACT_APP_API_BASE as string)
+    || (typeof window !== 'undefined' && /minnebo\.ai$/i.test(window.location.host) ? 'https://minnebo-ai.vercel.app' : '');
   const [input, setInput] = useState('');
   const [answer, setAnswer] = useState('');
   const [lastQuestion, setLastQuestion] = useState('');

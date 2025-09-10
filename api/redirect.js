@@ -75,6 +75,15 @@ export default async function handler(req, res) {
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Content-Security-Policy', "default-src 'self' https:; script-src 'unsafe-inline' https:; style-src 'unsafe-inline' https:; img-src 'self' https: data:;");
 
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  if (req.method === 'HEAD') {
+    // Render minimal headers but no body for HEAD
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.status(200).end();
+  }
+
   const html = `
     <!DOCTYPE html>
     <html>

@@ -50,6 +50,13 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'public, max-age=3600'); // Shorter cache for security
   res.setHeader('X-Content-Type-Options', 'nosniff');
 
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  if (req.method === 'HEAD') {
+    return res.status(200).end();
+  }
+
   // Prevent parameter pollution - extract single values only
   let question = req.query.question || '';
   let answer = req.query.answer || '';

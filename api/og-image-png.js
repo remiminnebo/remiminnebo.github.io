@@ -52,6 +52,14 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'public, max-age=3600');
   res.setHeader('X-Content-Type-Options', 'nosniff');
 
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  if (req.method === 'HEAD') {
+    // For HEAD, return headers with no body
+    return res.status(200).end();
+  }
+
   // params
   let id = req.query.id;
   if (Array.isArray(id)) id = id[0];
@@ -103,4 +111,3 @@ export default async function handler(req, res) {
     res.status(500).end('OG PNG error');
   }
 }
-

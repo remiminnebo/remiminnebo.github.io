@@ -11,6 +11,9 @@
     },
     "api/redirect.js": {
       "maxDuration": 3
+    },
+    "api/og-image-png.js": {
+      "maxDuration": 5
     }
   },
   "routes": [
@@ -29,6 +32,10 @@
     {
       "src": "/api/redirect",
       "dest": "/api/redirect"
+    },
+    {
+      "src": "/api/og-image-png",
+      "dest": "/api/og-image-png"
     },
     {
       "src": "/(.*)",
