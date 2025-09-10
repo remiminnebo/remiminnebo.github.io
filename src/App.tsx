@@ -35,6 +35,7 @@ function App(): JSX.Element {
   const rightActionsRef = useRef<HTMLDivElement | null>(null);
   const [minAnswerWidth, setMinAnswerWidth] = useState<number>(0);
   const [contentWidth, setContentWidth] = useState<number | undefined>(undefined);
+  const [chatWidth, setChatWidth] = useState<number | undefined>(undefined);
   const [controlsOpen, setControlsOpen] = useState(false);
 
   // Fancy pill-style button styling for selectors
@@ -658,14 +659,11 @@ function App(): JSX.Element {
     }
   };
 
-  // Chat input styling aligned with fancy pills
-  const [chatWidth, setChatWidth] = useState<number | undefined>(undefined);
-
   const chatShell = {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    width: chatWidth ? `${chatWidth}px` : '100%',
+    width: contentWidth ? `${contentWidth}px` : (chatWidth ? `${chatWidth}px` : '100%'),
     padding: '6px',
     borderRadius: '16px',
     background: 'rgba(255,255,255,0.15)',
