@@ -1281,13 +1281,10 @@ function App(): JSX.Element {
               </div>
             )}
             <div style={{
-              position: 'absolute',
-              bottom: '-42px',
-              left: '0px',
-              right: '0px',
               display: isAnswerComplete ? 'flex' : 'none',
               alignItems: 'center',
-              justifyContent: 'space-between'
+              justifyContent: 'space-between',
+              marginTop: '10px'
             }}>
               <div style={{ display: 'flex', gap: '16px' }}>
               <svg
@@ -1426,16 +1423,13 @@ function App(): JSX.Element {
         {/* Share Menu */}
         {showShareMenu && answer && (
           <div style={{
-            position: 'relative',
             maxWidth: isMobile ? '90vw' : '700px',
             width: isMobile ? '100%' : 'auto',
             display: 'flex',
-            justifyContent: 'flex-end'
+            justifyContent: 'flex-end',
+            marginTop: '8px'
           }}>
             <div ref={shareMenuRef} style={{
-              position: 'absolute',
-              bottom: '-148px',
-              right: '0px',
               borderRadius: '12px',
               border: '2px solid transparent',
               backgroundColor: '#FFFFFF',
