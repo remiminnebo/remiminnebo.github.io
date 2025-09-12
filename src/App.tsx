@@ -654,8 +654,7 @@ function App(): JSX.Element {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    width: contentWidth ? `${contentWidth}px` : 'auto',
-    maxWidth: isMobile ? '90vw' : '700px',
+    width: '100%',
     padding: '6px',
     borderRadius: '16px',
     background: 'rgba(255,255,255,0.15)',
@@ -1173,8 +1172,15 @@ function App(): JSX.Element {
         </div>
         
         {!isMobile && (
-          <div style={{ marginBottom: '20px', width: '100%', display: 'flex', justifyContent: 'center' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+          <div style={{
+            marginBottom: '20px',
+            width: contentWidth ? `${contentWidth}px` : 'auto',
+            maxWidth: '700px',
+            margin: '0 auto',
+            display: 'flex',
+            justifyContent: 'center'
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', width: '100%' }}>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
                 <button aria-expanded={controlsOpen} onClick={() => setControlsOpen(!controlsOpen)} style={{ display: 'flex', alignItems: 'center', padding: '8px 14px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.12)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
                   Customize: {summaryText()} <IconChevron open={controlsOpen} />
