@@ -824,6 +824,13 @@ function App(): JSX.Element {
     </div>
   );
 
+  // Shared frame to keep input and answer centered together
+  const frameStyle = {
+    width: contentWidth ? `${contentWidth}px` : 'auto',
+    maxWidth: isMobile ? '90vw' : '700px',
+    margin: '0 auto'
+  } as const;
+
   if (showSnake) {
     return (
       <div style={{
@@ -1171,42 +1178,36 @@ function App(): JSX.Element {
           />
         </div>
         
-        {!isMobile && (
-          <div style={{
-            marginBottom: '20px',
-            width: contentWidth ? `${contentWidth}px` : 'auto',
-            maxWidth: '700px',
-            margin: '0 auto',
-            display: 'flex',
-            justifyContent: 'center'
-          }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', width: '100%' }}>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-                <button aria-expanded={controlsOpen} onClick={() => setControlsOpen(!controlsOpen)} style={{ display: 'flex', alignItems: 'center', padding: '8px 14px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.12)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
-                  Customize: {summaryText()} <IconChevron open={controlsOpen} />
-                </button>
-                <button onClick={() => setHistoryOpen(!historyOpen)} aria-pressed={historyOpen} aria-label="Toggle history" style={{ padding: '8px 12px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.6)', fontWeight: 'bold', background: 'rgba(255,255,255,0.12)', color: 'white' }}>History</button>
-              </div>
-              {controlsOpen && (
+        <div style={frameStyle as any}>
+          {!isMobile && (
+            <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center', width: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', width: '100%' }}>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-                  <div role="group" aria-label="Tone" style={pillGroup as any}>
-                    <button aria-pressed={tone==='zen'} onClick={() => selectTone('zen')} style={pill(tone === 'zen', toneGradients.zen)}><IconLeaf />Zen</button>
-                    <button aria-pressed={tone==='guide'} onClick={() => selectTone('guide')} style={pill(tone === 'guide', toneGradients.guide)}><IconCompass />Guide</button>
-                    <button aria-pressed={tone==='stoic'} onClick={() => selectTone('stoic')} style={pill(tone === 'stoic', toneGradients.stoic)}><IconColumn />Stoic</button>
-                    <button aria-pressed={tone==='sufi'} onClick={() => selectTone('sufi')} style={pill(tone === 'sufi', toneGradients.sufi)}><IconSwirl />Sufi</button>
-                    <button aria-pressed={tone==='plain'} onClick={() => selectTone('plain')} style={pill(tone === 'plain', toneGradients.plain)}><IconText />Plain</button>
-                  </div>
-                  <div role="group" aria-label="Length" style={pillGroup as any}>
-                    <button aria-pressed={lengthPref==='auto'} onClick={() => selectLength('auto')} style={pill(lengthPref === 'auto', lengthGradients.auto)}><IconWand />Auto</button>
-                    <button aria-pressed={lengthPref==='short'} onClick={() => selectLength('short')} style={pill(lengthPref === 'short', lengthGradients.short)}><IconShort />Short</button>
-                    <button aria-pressed={lengthPref==='long'} onClick={() => selectLength('long')} style={pill(lengthPref === 'long', lengthGradients.long)}><IconLong />Long</button>
-                  </div>
+                  <button aria-expanded={controlsOpen} onClick={() => setControlsOpen(!controlsOpen)} style={{ display: 'flex', alignItems: 'center', padding: '8px 14px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.12)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
+                    Customize: {summaryText()} <IconChevron open={controlsOpen} />
+                  </button>
+                  <button onClick={() => setHistoryOpen(!historyOpen)} aria-pressed={historyOpen} aria-label="Toggle history" style={{ padding: '8px 12px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.6)', fontWeight: 'bold', background: 'rgba(255,255,255,0.12)', color: 'white' }}>History</button>
                 </div>
-              )}
-              {chatInput}
+                {controlsOpen && (
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <div role="group" aria-label="Tone" style={pillGroup as any}>
+                      <button aria-pressed={tone==='zen'} onClick={() => selectTone('zen')} style={pill(tone === 'zen', toneGradients.zen)}><IconLeaf />Zen</button>
+                      <button aria-pressed={tone==='guide'} onClick={() => selectTone('guide')} style={pill(tone === 'guide', toneGradients.guide)}><IconCompass />Guide</button>
+                      <button aria-pressed={tone==='stoic'} onClick={() => selectTone('stoic')} style={pill(tone === 'stoic', toneGradients.stoic)}><IconColumn />Stoic</button>
+                      <button aria-pressed={tone==='sufi'} onClick={() => selectTone('sufi')} style={pill(tone === 'sufi', toneGradients.sufi)}><IconSwirl />Sufi</button>
+                      <button aria-pressed={tone==='plain'} onClick={() => selectTone('plain')} style={pill(tone === 'plain', toneGradients.plain)}><IconText />Plain</button>
+                    </div>
+                    <div role="group" aria-label="Length" style={pillGroup as any}>
+                      <button aria-pressed={lengthPref==='auto'} onClick={() => selectLength('auto')} style={pill(lengthPref === 'auto', lengthGradients.auto)}><IconWand />Auto</button>
+                      <button aria-pressed={lengthPref==='short'} onClick={() => selectLength('short')} style={pill(lengthPref === 'short', lengthGradients.short)}><IconShort />Short</button>
+                      <button aria-pressed={lengthPref==='long'} onClick={() => selectLength('long')} style={pill(lengthPref === 'long', lengthGradients.long)}><IconLong />Long</button>
+                    </div>
+                  </div>
+                )}
+                {chatInput}
+              </div>
             </div>
-          </div>
-        )}
+          )}
         
         {/* Challenge UI */}
         {challenge && (
@@ -1297,7 +1298,7 @@ function App(): JSX.Element {
         )}
         
         {answer && (
-          <div ref={answerBlockRef} style={{ position: 'relative', minWidth: minAnswerWidth ? `${minAnswerWidth}px` : undefined, width: contentWidth ? `${contentWidth}px` : 'auto', maxWidth: isMobile ? '90vw' : '700px', margin: '0 auto' }}>
+          <div ref={answerBlockRef} style={{ position: 'relative', minWidth: minAnswerWidth ? `${minAnswerWidth}px` : undefined, width: '100%', maxWidth: '100%', margin: '12px auto 0' }}>
             <div 
               style={{
                 padding: '16px',
@@ -1521,6 +1522,7 @@ function App(): JSX.Element {
             </div>
           </div>
         )}
+        </div>
       </div>
       
       {isMobile && (
