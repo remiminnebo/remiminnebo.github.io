@@ -558,7 +558,7 @@ function App(): JSX.Element {
     return () => clearInterval(gameLoop);
   }, [showSnake, direction, food, highScore]);
 
-  const handleSend = async () => {
+  const handleSend = async (overrideMessage?: string) => {
     if ((overrideMessage && overrideMessage.trim()) || input.trim()) {
       if (input.toLowerCase() === 'snake') {
         setShowSnake(true);
