@@ -1412,24 +1412,19 @@ function App(): JSX.Element {
                 <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
                 <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
               </svg>
-                <button
-                  onClick={() => handleSend(lastQuestion)}
-                  title="Regenerate"
-                  style={{
-                    padding: '6px 10px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: '#200F3B',
-                    color: 'white',
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <IconWand /> Regenerate
-                </button>
+              <svg
+                onClick={() => handleSend(lastQuestion)}
+                width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2"
+                style={{
+                  cursor: 'pointer',
+                  transition: 'stroke 0.2s ease, fill 0.2s ease'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.stroke = '#310080'; e.currentTarget.style.fill = '#310080'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.stroke = 'white'; e.currentTarget.style.fill = 'white'; }}
+                role="button" aria-label="Regenerate" title="Regenerate"
+              >
+                <path d="M6 18L18 6M14 6h4v4"></path>
+              </svg>
               </div>
             </div>
           </div>
