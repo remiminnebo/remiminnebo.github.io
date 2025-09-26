@@ -1184,10 +1184,37 @@ function App(): JSX.Element {
           <div style={{ marginBottom: '16px', width: '100%', display: 'flex', justifyContent: 'center' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-                <button aria-expanded={controlsOpen} onClick={() => setControlsOpen(!controlsOpen)} style={{ display: 'flex', alignItems: 'center', padding: '8px 14px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.12)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
+                <button aria-expanded={controlsOpen} onClick={() => setControlsOpen(!controlsOpen)} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '8px 14px',
+                  borderRadius: '999px',
+                  border: '2px solid transparent',
+                  background: 'white',
+                  backgroundImage: 'linear-gradient(white, white), linear-gradient(135deg, #03BFF3, #310080, #FF0095, #44FF06, #03BFF3)',
+                  backgroundOrigin: 'border-box',
+                  backgroundClip: 'padding-box, border-box',
+                  backgroundSize: 'auto, 300% 300%',
+                  animation: 'gradientShift 4s ease infinite',
+                  color: '#200F3B',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}>
                   Customize: {summaryText()} <IconChevron open={controlsOpen} />
                 </button>
-                <button onClick={() => setHistoryOpen(!historyOpen)} aria-pressed={historyOpen} aria-label="Toggle history" style={{ padding: '8px 12px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.6)', fontWeight: 'bold', background: 'rgba(255,255,255,0.12)', color: 'white' }}>History</button>
+                <button onClick={() => setHistoryOpen(!historyOpen)} aria-pressed={historyOpen} aria-label="Toggle history" style={{
+                  padding: '8px 12px',
+                  borderRadius: '999px',
+                  border: '2px solid transparent',
+                  fontWeight: 'bold',
+                  background: 'white',
+                  backgroundImage: 'linear-gradient(white, white), linear-gradient(135deg, #03BFF3, #310080, #FF0095, #44FF06, #03BFF3)',
+                  backgroundOrigin: 'border-box',
+                  backgroundClip: 'padding-box, border-box',
+                  backgroundSize: 'auto, 300% 300%',
+                  animation: 'gradientShift 4s ease infinite',
+                  color: '#200F3B'
+                }}>History</button>
               </div>
               {controlsOpen && (
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -1543,7 +1570,22 @@ function App(): JSX.Element {
         }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
-              <button aria-expanded={controlsOpen} onClick={() => setControlsOpen(!controlsOpen)} style={{ display: 'flex', alignItems: 'center', padding: '8px 14px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.7)', background: 'rgba(255,255,255,0.14)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
+              <button aria-expanded={controlsOpen} onClick={() => setControlsOpen(!controlsOpen)} style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '8px 14px',
+                borderRadius: '999px',
+                border: '2px solid transparent',
+                background: 'white',
+                backgroundImage: 'linear-gradient(white, white), linear-gradient(135deg, #03BFF3, #310080, #FF0095, #44FF06, #03BFF3)',
+                backgroundOrigin: 'border-box',
+                backgroundClip: 'padding-box, border-box',
+                backgroundSize: 'auto, 300% 300%',
+                animation: 'gradientShift 4s ease infinite',
+                color: '#200F3B',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}>
                 Customize: {summaryText()} <IconChevron open={controlsOpen} />
               </button>
             </div>

@@ -116,7 +116,7 @@ const InteractiveShader: React.FC<ShaderProps> = ({
 
             // Bright blue color palette - all bright, no dark tones
             vec3 brightBlue1 = vec3(0.4, 0.8, 1.0);     // Bright blue
-            vec3 brightBlue2 = vec3(0.2, 0.9, 1.0);     // Bright cyan-blue
+            vec3 brightBlue2 = vec3(0.2, 0.ma, 1.0);     // Bright cyan-blue
             vec3 brightBlue3 = vec3(0.3, 0.7, 1.0);     // Bright sky blue
             vec3 brandBlue = vec3(0.0118, 0.749, 0.953); // #03BFF3 brand color
 
@@ -134,8 +134,8 @@ const InteractiveShader: React.FC<ShaderProps> = ({
             float topBrightness = smoothstep(0.5, -1.0, uv.y); // Bright at top, dimmer at bottom
 
             // Use density but ensure minimum brightness to prevent black - reduced noise level
-            float adjustedDensity = max(density * 0.5, 0.05 + 0.15 * topBrightness); // Reduced noise (0.5 instead of 0.8)
-            col += auroraColor * adjustedDensity * 0.15 * uColorIntensity; // Increased from 0.1 to 0.15 for more color pop
+            float adjustedDensity = max(density * 0.46, 0.05 + 0.15 * topBrightness); // Reduced noise (0.5 instead of 0.8)
+            col += auroraColor * adjustedDensity * 0.17 * uColorIntensity; // Sweet spot between 0.15 and 0.2
 
             // Step forward through the volume.
             t += 0.1;
