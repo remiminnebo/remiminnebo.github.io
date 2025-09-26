@@ -1326,11 +1326,9 @@ function App(): JSX.Element {
                   borderRadius: '999px',
                   border: '2px solid transparent',
                   background: 'white',
-                  backgroundImage: 'linear-gradient(white, white), linear-gradient(135deg, #03BFF3, #310080, #FF0095, #44FF06, #03BFF3)',
+                  backgroundImage: 'linear-gradient(white, white), linear-gradient(135deg, #03BFF3, #310080)',
                   backgroundOrigin: 'border-box',
                   backgroundClip: 'padding-box, border-box',
-                  backgroundSize: 'auto, 300% 300%',
-                  animation: 'gradientShift 4s ease infinite',
                   color: '#200F3B',
                   fontWeight: 'bold',
                   cursor: 'pointer'
@@ -1343,11 +1341,9 @@ function App(): JSX.Element {
                   border: '2px solid transparent',
                   fontWeight: 'bold',
                   background: 'white',
-                  backgroundImage: 'linear-gradient(white, white), linear-gradient(135deg, #03BFF3, #310080, #FF0095, #44FF06, #03BFF3)',
+                  backgroundImage: 'linear-gradient(white, white), linear-gradient(135deg, #03BFF3, #310080)',
                   backgroundOrigin: 'border-box',
                   backgroundClip: 'padding-box, border-box',
-                  backgroundSize: 'auto, 300% 300%',
-                  animation: 'gradientShift 4s ease infinite',
                   color: '#200F3B'
                 }}>History</button>
               </div>
@@ -1724,11 +1720,9 @@ function App(): JSX.Element {
                 borderRadius: '999px',
                 border: '2px solid transparent',
                 background: 'white',
-                backgroundImage: 'linear-gradient(white, white), linear-gradient(135deg, #03BFF3, #310080, #FF0095, #44FF06, #03BFF3)',
+                backgroundImage: 'linear-gradient(white, white), linear-gradient(135deg, #03BFF3, #310080)',
                 backgroundOrigin: 'border-box',
                 backgroundClip: 'padding-box, border-box',
-                backgroundSize: 'auto, 300% 300%',
-                animation: 'gradientShift 4s ease infinite',
                 color: '#200F3B',
                 fontWeight: 'bold',
                 cursor: 'pointer'
