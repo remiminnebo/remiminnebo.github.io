@@ -1,5 +1,6 @@
 import logo from './logo.svg';
 import { useState, useEffect, useRef } from 'react';
+import { LiquidCrystalBackground } from './liquid-crystal.tsx';
 
 function App(): JSX.Element {
   const API_BASE = (process.env.REACT_APP_API_BASE as string)
@@ -559,7 +560,7 @@ function App(): JSX.Element {
   }, [showSnake, direction, food, highScore]);
 
   const handleSend = async (overrideMessage?: string) => {
-    if ((overrideMessage && overrideMessage.trim()) || input.trim()) {
+    if ((overrideMessage && typeof overrideMessage === 'string' && overrideMessage.trim()) || (typeof input === 'string' && input.trim())) {
       if (input.toLowerCase() === 'snake') {
         setShowSnake(true);
         setInput('');
@@ -670,8 +671,8 @@ function App(): JSX.Element {
     padding: '10px 14px',
     borderRadius: '12px',
     border: '2px solid transparent',
-    backgroundColor: '#FFFFFF',
-    backgroundImage: 'linear-gradient(#FFFFFF, #FFFFFF), linear-gradient(135deg, #03BFF3, #310080)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.95)), linear-gradient(135deg, #03BFF3, #310080)',
     backgroundOrigin: 'border-box',
     backgroundClip: 'padding-box, border-box',
     fontSize: '16px',
@@ -834,13 +835,13 @@ function App(): JSX.Element {
   if (showSnake) {
     return (
       <div style={{
-        backgroundColor: '#03BFF3',
         height: '100vh',
         display: 'flex',
         flexDirection: 'column',
         fontFamily: 'Tahoma, sans-serif',
         position: 'relative'
       }}>
+        <LiquidCrystalBackground />
         <div style={{
           position: 'absolute',
           top: '20px',
@@ -898,13 +899,13 @@ function App(): JSX.Element {
 
   return (
     <div style={{
-      backgroundColor: '#03BFF3',
       height: '100vh',
       display: 'flex',
       flexDirection: 'column',
       fontFamily: 'Tahoma, sans-serif',
       position: 'relative'
     }}>
+      <LiquidCrystalBackground />
       {/* History Panel */}
       {(historyOpen || historyAnimatingOut) && (
         <>
@@ -1068,7 +1069,8 @@ function App(): JSX.Element {
             left: 0,
             width: '100%',
             height: '100%',
-            backgroundColor: '#03BFF3',
+            backgroundColor: 'rgba(3, 191, 243, 0.3)',
+            backdropFilter: 'blur(20px)',
             zIndex: 999
           }} />
           <div style={{
@@ -1313,11 +1315,12 @@ function App(): JSX.Element {
                 fontWeight: 'normal',
                 color: '#200F3B',
                 border: '2px solid transparent',
-                backgroundColor: '#FFFFFF',
-                backgroundImage: 'linear-gradient(#FFFFFF, #FFFFFF), linear-gradient(135deg, #03BFF3, #310080)',
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.95)), linear-gradient(135deg, #03BFF3, #310080)',
                 backgroundOrigin: 'border-box',
                 backgroundClip: 'padding-box, border-box',
-                boxShadow: '0 6px 16px rgba(0,0,0,0.12)'
+                boxShadow: '0 6px 16px rgba(0,0,0,0.25)',
+                backdropFilter: 'blur(10px)'
               }}
               dangerouslySetInnerHTML={{ __html: parseMarkdown(answer) }}
             />
@@ -1532,9 +1535,11 @@ function App(): JSX.Element {
           left: 0,
           right: 0,
           padding: '20px',
-          backgroundColor: '#03BFF3',
+          backgroundColor: 'rgba(3, 191, 243, 0.1)',
+          backdropFilter: 'blur(10px)',
           display: 'flex',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          zIndex: 100
         }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
