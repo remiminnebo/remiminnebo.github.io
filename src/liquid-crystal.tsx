@@ -116,7 +116,7 @@ const InteractiveShader: React.FC<ShaderProps> = ({
 
             // Bright blue color palette - all bright, no dark tones
             vec3 brightBlue1 = vec3(0.4, 0.8, 1.0);     // Bright blue
-            vec3 brightBlue2 = vec3(0.2, 0.ma, 1.0);     // Bright cyan-blue
+            vec3 brightBlue2 = vec3(0.2, 0.9, 1.0);     // Bright cyan-blue
             vec3 brightBlue3 = vec3(0.3, 0.7, 1.0);     // Bright sky blue
             vec3 brandBlue = vec3(0.0118, 0.749, 0.953); // #03BFF3 brand color
 
