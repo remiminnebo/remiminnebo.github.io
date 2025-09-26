@@ -1,6 +1,110 @@
 import logo from './logo.svg';
 import { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { LiquidCrystalBackground } from './liquid-crystal.tsx';
+
+// TextScramble component using framer-motion
+interface TextScrambleProps {
+  children: string;
+  duration?: number;
+  speed?: number;
+  characterSet?: string;
+  trigger?: boolean;
+  onScrambleComplete?: () => void;
+  preserveMarkdown?: boolean;
+}
+
+const defaultChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';
+
+function TextScramble({
+  children,
+  duration = 1.2,
+  speed = 0.03,
+  characterSet = defaultChars,
+  trigger = true,
+  onScrambleComplete,
+  preserveMarkdown = false,
+}: TextScrambleProps) {
+  const [displayText, setDisplayText] = useState('');
+  const [isAnimating, setIsAnimating] = useState(false);
+  const text = children;
+
+  // Function to parse markdown for plain text extraction
+  const parseMarkdown = (text: string) => {
+    const escapeHtml = (str: string) => {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    };
+
+    const escaped = escapeHtml(text);
+
+    return escaped
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/\n/g, '<br />');
+  };
+
+  const scramble = async () => {
+    if (isAnimating) return;
+    setIsAnimating(true);
+
+    const steps = duration / speed;
+    let step = 0;
+
+    const interval = setInterval(() => {
+      let scrambled = '';
+      const progress = step / steps;
+
+      for (let i = 0; i < text.length; i++) {
+        if (text[i] === ' ' || text[i] === '\n') {
+          scrambled += text[i];
+          continue;
+        }
+
+        if (progress * text.length > i) {
+          scrambled += text[i];
+        } else {
+          scrambled += characterSet[Math.floor(Math.random() * characterSet.length)];
+        }
+      }
+
+      setDisplayText(scrambled);
+      step++;
+
+      if (step > steps) {
+        clearInterval(interval);
+        setDisplayText(text);
+        setIsAnimating(false);
+        onScrambleComplete?.();
+      }
+    }, speed * 1000);
+  };
+
+  useEffect(() => {
+    if (!trigger) return;
+    setDisplayText(text); // Initialize with scrambled state
+    scramble();
+  }, [trigger, text]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.5,
+        ease: [0.25, 0.46, 0.45, 0.94]
+      }}
+    >
+      {preserveMarkdown ? (
+        <span dangerouslySetInnerHTML={{ __html: parseMarkdown(displayText) }} />
+      ) : (
+        displayText
+      )}
+    </motion.div>
+  );
+}
+
 
 function App(): JSX.Element {
   const API_BASE = (process.env.REACT_APP_API_BASE as string)
@@ -11,6 +115,7 @@ function App(): JSX.Element {
   const [messages, setMessages] = useState<{question: string, answer: string}[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [isAnswerComplete, setIsAnswerComplete] = useState(false);
+  const [shouldScramble, setShouldScramble] = useState(false);
   const [showFlashMessage, setShowFlashMessage] = useState(false);
   const [flashMessageText, setFlashMessageText] = useState('');
   const [showShareMenu, setShowShareMenu] = useState(false);
@@ -573,6 +678,7 @@ function App(): JSX.Element {
       setAnswer('');
       setIsTyping(true);
       setIsAnswerComplete(false);
+      setShouldScramble(false);
       
       try {
         const requestBody: any = { message: userMessage, tone, length: lengthPref === 'auto' ? undefined : lengthPref };
@@ -612,6 +718,7 @@ function App(): JSX.Element {
           
           setAnswer('Connection error. Please try again.');
           setIsTyping(false);
+          setShouldScramble(true);
           return;
         }
         
@@ -647,6 +754,7 @@ function App(): JSX.Element {
         console.error('Fetch error:', error);
         setAnswer('Connection error. Please try again.');
         setIsTyping(false);
+        setShouldScramble(true);
       }
     }
   };
@@ -672,14 +780,16 @@ function App(): JSX.Element {
     borderRadius: '12px',
     border: '2px solid transparent',
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.95)), linear-gradient(135deg, #03BFF3, #310080)',
+    backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.95)), linear-gradient(135deg, #03BFF3, #310080, #FF0095, #44FF06, #03BFF3)',
     backgroundOrigin: 'border-box',
     backgroundClip: 'padding-box, border-box',
+    backgroundSize: 'auto, 300% 300%',
+    animation: 'gradientShift 4s ease infinite',
     fontSize: '16px',
     fontWeight: 'bold',
     fontFamily: 'Tahoma, sans-serif',
     outline: 'none',
-    color: '#200F3B' 
+    color: '#200F3B'
   } as const;
 
   const sendPill = (hovered: boolean) => {
@@ -747,6 +857,17 @@ function App(): JSX.Element {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  // Auto-focus the input when component mounts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+
   const chatInput = (
     <div style={chatShell as any}>
       {/* Hidden sizers: width (no wrap) and height (wrap) */}
@@ -803,6 +924,7 @@ function App(): JSX.Element {
         className="thick-cursor"
         aria-label="Ask a question"
         rows={1}
+        autoFocus
         style={{
           ...(inputPill as any),
           resize: 'none',
@@ -905,6 +1027,19 @@ function App(): JSX.Element {
       fontFamily: 'Tahoma, sans-serif',
       position: 'relative'
     }}>
+      <style>{`
+        .thick-cursor {
+          caret-color: #200F3B;
+        }
+        @keyframes blink {
+          0%, 50% { opacity: 1; }
+          51%, 100% { opacity: 0; }
+        }
+        .thick-cursor:focus {
+          caret-color: #200F3B;
+          animation: blink 1s infinite;
+        }
+      `}</style>
       <LiquidCrystalBackground />
       {/* History Panel */}
       {(historyOpen || historyAnimatingOut) && (
@@ -1329,7 +1464,7 @@ function App(): JSX.Element {
         
         {answer && (
           <div ref={answerBlockRef} style={{ position: 'relative', minWidth: minAnswerWidth ? `${minAnswerWidth}px` : undefined, width: '100%', maxWidth: '100%', margin: '16px auto 0' }}>
-            <div 
+            <div
               style={{
                 padding: '16px',
                 borderRadius: '12px',
@@ -1349,8 +1484,20 @@ function App(): JSX.Element {
                 boxShadow: '0 6px 16px rgba(0,0,0,0.25)',
                 backdropFilter: 'blur(10px)'
               }}
-              dangerouslySetInnerHTML={{ __html: parseMarkdown(answer) }}
-            />
+            >
+              {(isAnswerComplete || shouldScramble) ? (
+                <TextScramble
+                  duration={1.2}
+                  speed={0.03}
+                  trigger={isAnswerComplete || shouldScramble}
+                  preserveMarkdown={true}
+                >
+                  {answer}
+                </TextScramble>
+              ) : (
+                <span dangerouslySetInnerHTML={{ __html: parseMarkdown(answer) }} />
+              )}
+            </div>
             {/* Actions bar */}
             <div style={{
               display: isAnswerComplete ? 'flex' : 'none',
