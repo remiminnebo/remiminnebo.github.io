@@ -109,8 +109,34 @@ function TextScramble({
 function App(): JSX.Element {
   const API_BASE = (process.env.REACT_APP_API_BASE as string)
     || (typeof window !== 'undefined' && /minnebo\.ai$/i.test(window.location.host) ? 'https://minnebo-ai.vercel.app' : '');
-  const [input, setInput] = useState('');
-  const [answer, setAnswer] = useState('');
+  const [input, setInputState] = useState('');
+
+  // Safe setter that ensures input is always a string
+  const setInput = (value: any) => {
+    if (typeof value === 'string') {
+      setInputState(value);
+    } else if (value === null || value === undefined) {
+      setInputState('');
+    } else {
+      // If it's an object or other non-string type, convert safely
+      setInputState('');
+      console.warn('Attempted to set non-string value to input:', typeof value, value);
+    }
+  };
+  const [answer, setAnswerState] = useState('');
+
+  // Safe setter that ensures answer is always a string
+  const setAnswer = (value: any) => {
+    if (typeof value === 'string') {
+      setAnswerState(value);
+    } else if (value === null || value === undefined) {
+      setAnswerState('');
+    } else {
+      // If it's an object or other non-string type, convert safely
+      setAnswerState('An error occurred. Please try again.');
+      console.warn('Attempted to set non-string value to answer:', typeof value, value);
+    }
+  };
   const [lastQuestion, setLastQuestion] = useState('');
   const [messages, setMessages] = useState<{question: string, answer: string}[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -608,7 +634,6 @@ function App(): JSX.Element {
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         setShowShareMenu(false);
-        setFollowUpOpen(false);
         setControlsOpen(false);
         closeHistory();
       }
@@ -752,7 +777,9 @@ function App(): JSX.Element {
         }
       } catch (error) {
         console.error('Fetch error:', error);
-        setAnswer('Connection error. Please try again.');
+        // Ensure we always set a string message, never an object
+        const errorMessage = error instanceof Error ? error.message : 'Connection error. Please try again.';
+        setAnswer(typeof errorMessage === 'string' && errorMessage ? errorMessage : 'Connection error. Please try again.');
         setIsTyping(false);
         setShouldScramble(true);
       }
@@ -916,7 +943,7 @@ function App(): JSX.Element {
       <textarea
         ref={inputRef}
         value={input}
-        onChange={(e) => setInput(e.target.value)}
+        onChange={(e) => setInput(typeof e.target.value === 'string' ? e.target.value : '')}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
         }}
@@ -936,7 +963,7 @@ function App(): JSX.Element {
         }}
       />
       <button
-        onClick={handleSend}
+        onClick={() => handleSend()}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         aria-label="Send question"
