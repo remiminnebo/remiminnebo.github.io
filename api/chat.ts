@@ -355,24 +355,44 @@ ${lengthInstruction}`;
 
       const decoratedPrompt = tone && toneMap[tone.toLowerCase()] ? toneMap[tone.toLowerCase()] : (Math.random() < 0.5 ? sagePrompt : guidePrompt);
       
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: decoratedPrompt
+      const makeRequest = async (model: string) => {
+        return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: decoratedPrompt
+              }]
             }]
-          }]
-        })
-      });
+          })
+        });
+      };
+
+      let response = await makeRequest('gemini-2.5-flash');
       
       if (!response.ok) {
-        // Safe logging - no sensitive data
-        console.error('Gemini API error - Status:', response.status);
-        return res.status(500).end('AI service temporarily unavailable');
+        const errorBody = await response.text();
+        console.error(`Gemini 2.5 Flash API error (${response.status}):`, errorBody);
+        
+        console.log('Falling back to Gemini 2.0 Flash...');
+        response = await makeRequest('gemini-2.0-flash');
+        
+        if (!response.ok) {
+          const secondError = await response.text();
+          console.error(`Gemini 2.0 Flash API error (${response.status}):`, secondError);
+          
+          console.log('Falling back to Gemini 1.5 Flash...');
+          response = await makeRequest('gemini-1.5-flash');
+          
+          if (!response.ok) {
+            const finalError = await response.text();
+            console.error(`Gemini 1.5 Flash API error (${response.status}):`, finalError);
+            return res.status(500).end('AI service temporarily unavailable');
+          }
+        }
       }
       
       const data = await response.json();
