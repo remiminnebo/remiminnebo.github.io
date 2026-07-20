@@ -355,51 +355,75 @@ ${lengthInstruction}`;
 
       const decoratedPrompt = tone && toneMap[tone.toLowerCase()] ? toneMap[tone.toLowerCase()] : (Math.random() < 0.5 ? sagePrompt : guidePrompt);
       
+      // Stream tokens as they are generated (SSE) so text appears immediately
+      // instead of after the full response. 2.5 Flash's "thinking" budget is
+      // zeroed to cut first-token latency for these short answers.
       const makeRequest = async (model: string) => {
-        return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+        const body: any = {
+          contents: [{ parts: [{ text: decoratedPrompt }] }],
+        };
+        if (model.startsWith('gemini-2.5')) {
+          body.generationConfig = { thinkingConfig: { thinkingBudget: 0 } };
+        }
+        return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${process.env.GEMINI_API_KEY}`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: decoratedPrompt
-              }]
-            }]
-          })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
         });
       };
 
       let response = await makeRequest('gemini-2.5-flash');
-      
+
       if (!response.ok) {
-        const errorBody = await response.text();
-        console.error(`Gemini 2.5 Flash API error (${response.status}):`, errorBody);
-        
+        console.error(`Gemini 2.5 Flash API error (${response.status}):`, await response.text());
         console.log('Falling back to Gemini 2.0 Flash...');
         response = await makeRequest('gemini-2.0-flash');
-        
+
         if (!response.ok) {
-          const secondError = await response.text();
-          console.error(`Gemini 2.0 Flash API error (${response.status}):`, secondError);
-          
+          console.error(`Gemini 2.0 Flash API error (${response.status}):`, await response.text());
           console.log('Falling back to Gemini 1.5 Flash...');
           response = await makeRequest('gemini-1.5-flash');
-          
+
           if (!response.ok) {
-            const finalError = await response.text();
-            console.error(`Gemini 1.5 Flash API error (${response.status}):`, finalError);
+            console.error(`Gemini 1.5 Flash API error (${response.status}):`, await response.text());
             return res.status(500).end('AI service temporarily unavailable');
           }
         }
       }
-      
-      const data = await response.json();
-      const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
-      
-      // Send complete response immediately (no artificial streaming delay)
-      res.end(aiResponse);
+
+      // Parse the SSE stream and forward text deltas to the client.
+      const reader = response.body?.getReader();
+      if (!reader) {
+        return res.status(500).end('AI service temporarily unavailable');
+      }
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let sent = false;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buffer.indexOf('\n')) >= 0) {
+          const line = buffer.slice(0, nl).trim();
+          buffer = buffer.slice(nl + 1);
+          if (!line.startsWith('data:')) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === '[DONE]') continue;
+          try {
+            const json = JSON.parse(payload);
+            const text = json.candidates?.[0]?.content?.parts?.map((p: any) => p.text || '').join('') || '';
+            if (text) {
+              res.write(text);
+              sent = true;
+            }
+          } catch {
+            // partial/non-JSON keep-alive line; ignore
+          }
+        }
+      }
+      if (!sent) res.write('No response generated.');
+      res.end();
       
     } catch (error) {
       // Safe logging - only log error type, not full error object

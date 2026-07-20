@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { renderMarkdown } from '../lib/markdown.ts';
+import { TextScramble } from './TextScramble.tsx';
 import { IconCopy, IconRetry, IconShare, IconThumbDown, IconThumbUp } from './icons.tsx';
 
 interface AnswerViewProps {
@@ -56,8 +57,15 @@ export function AnswerView({
     <div className="answer-wrap">
       <p className="q-echo">{question}</p>
       <div className="answer-body">
-        <span dangerouslySetInnerHTML={{ __html: renderMarkdown(answer) }} />
-        {streaming && <span className="stream-caret" />}
+        {streaming ? (
+          <>
+            <span dangerouslySetInnerHTML={{ __html: renderMarkdown(answer) }} />
+            <span className="stream-caret" />
+          </>
+        ) : (
+          // Once streaming completes, decode the final text into place.
+          <TextScramble>{answer}</TextScramble>
+        )}
       </div>
 
       {!streaming && (
