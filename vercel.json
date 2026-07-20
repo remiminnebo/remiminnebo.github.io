@@ -7,13 +7,15 @@
       "maxDuration": 5
     },
     "api/og-image.js": {
-      "maxDuration": 5
+      "maxDuration": 5,
+      "includeFiles": "api/_fonts/**"
     },
     "api/redirect.js": {
       "maxDuration": 3
     },
     "api/og-image-png.js": {
-      "maxDuration": 5
+      "maxDuration": 5,
+      "includeFiles": "api/_fonts/**"
     }
   },
   "routes": [
