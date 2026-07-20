@@ -53,10 +53,10 @@ vec3 hueShift(vec3 color, float a) {
   return color * c + cross(k, color) * sin(a) + k * dot(k, color) * (1.0 - c);
 }
 
-// iridescent neon palette: magenta / orange / teal / electric blue
+// iridescent jewel palette: violet / teal / rose / gold, harmonized
 vec3 pal(float x) {
-  return vec3(0.55, 0.35, 0.60)
-       + vec3(0.45, 0.35, 0.40) * cos(6.28318 * (x + vec3(0.90, 0.55, 0.15)));
+  return vec3(0.50, 0.40, 0.55)
+       + vec3(0.40, 0.34, 0.38) * cos(6.28318 * (x + vec3(0.98, 0.42, 0.18)));
 }
 
 void main() {
@@ -91,27 +91,28 @@ void main() {
   );
   float f = fbm(s + 2.5 * w);
 
-  // violet-magenta body, tinted faintly by the tone accent
-  vec3 col = mix(vec3(0.10, 0.04, 0.20), vec3(0.36, 0.12, 0.45), f * 1.25);
-  col = mix(col, vec3(0.55, 0.16, 0.40), q.x * q.x * 0.7);
-  col = mix(col, uAccent * 0.30, q.y * 0.22);
+  // deep jewel body: indigo → royal violet, with a teal-shadowed underside
+  vec3 col = mix(vec3(0.08, 0.05, 0.19), vec3(0.34, 0.14, 0.46), f * 1.25);
+  col = mix(col, vec3(0.09, 0.28, 0.38), q.y * q.y * 0.5);          // teal deeps
+  col = mix(col, vec3(0.58, 0.20, 0.44), q.x * q.x * 0.65);          // magenta swells
+  col = mix(col, uAccent * 0.28, q.y * 0.20);
 
   // marbled iridescent rivers along the flow contours
   float fil = pow(0.5 + 0.5 * sin(f * 14.0 - uFlow * 0.15), 10.0);
   vec3 neon = pal(fract(w.x * 0.8 + uFlow * 0.004));
   col += neon * fil * (0.40 + 0.7 * w.y) * (1.0 + 1.3 * uEnergy);
 
-  // glowing ember crack-veins, like cooling lava seams
+  // glowing ember veins, warm but cooled with a rose core so it isn't pure gold
   float crackBase = fbm(s * 2.6 + 2.2 * w + 3.0);
   float vein = pow(0.5 + 0.5 * sin(crackBase * 18.0 + w.y * 4.0), 16.0);
   float flicker = 0.8 + (0.3 + 0.5 * uEnergy) * sin(uFlow * 0.8 + crackBase * 20.0);
-  vec3 ember = mix(vec3(0.85, 0.10, 0.06), vec3(1.0, 0.62, 0.16), vein * flicker);
-  col += ember * vein * flicker * (0.5 + 0.8 * q.x) * (1.0 + 1.6 * uEnergy);
+  vec3 ember = mix(vec3(0.92, 0.16, 0.34), vec3(1.0, 0.58, 0.22), vein * flicker);
+  col += ember * vein * flicker * (0.42 + 0.7 * q.x) * (1.0 + 1.4 * uEnergy);
 
-  // frosted pale highlands with mineral texture
+  // frosted highlands — cool lilac to icy blue-white
   float land = smoothstep(0.52, 0.62, fbm(s * 1.4 + 4.0 * q + 11.0));
   float rock = fbm(s * 7.0 + w * 2.0);
-  vec3 frost = mix(vec3(0.52, 0.48, 0.66), vec3(0.84, 0.82, 0.91), rock * rock * 1.3);
+  vec3 frost = mix(vec3(0.46, 0.50, 0.72), vec3(0.82, 0.86, 0.96), rock * rock * 1.3);
   col = mix(col, frost, land * 0.85);
   // embers burn through at the highland edges
   col += ember * land * (1.0 - land) * 4.0 * vein * 1.6;
@@ -120,14 +121,14 @@ void main() {
   float l = dot(vec3(p, z), normalize(vec3(0.25, 0.55, 0.80)));
   col *= 0.45 + 0.65 * clamp(l, 0.0, 1.0);
 
-  // atmosphere rim + warm horizon glow at the top; brightens when awake
+  // atmosphere rim: cool violet halo with a rose-gold horizon glow up top
   float rim = pow(1.0 - z, 2.5);
-  col += vec3(0.55, 0.30, 0.55) * rim * (0.35 + 0.4 * uEnergy);
-  col += vec3(1.0, 0.55, 0.35) * rim * max(p.y, 0.0) * 0.45;
+  col += vec3(0.42, 0.34, 0.66) * rim * (0.34 + 0.4 * uEnergy);
+  col += vec3(1.0, 0.52, 0.46) * rim * max(p.y, 0.0) * 0.42;
   col += uAccent * rim * uEnergy * 0.3;
 
-  // slow whole-planet hue breathing
-  col = hueShift(col, sin(uTime * 0.03) * 0.6);
+  // slow whole-planet hue breathing — gentle drift through the jewel range
+  col = hueShift(col, sin(uTime * 0.03) * 0.32);
 
   col += (hash(floor(gl_FragCoord.xy / 2.0) + fract(uTime)) - 0.5) * 0.015;
 
