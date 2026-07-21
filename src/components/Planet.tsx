@@ -39,12 +39,35 @@ float fbm(vec2 p) {
   float v = 0.0;
   float amp = 0.5;
   mat2 r = mat2(0.8, -0.6, 0.6, 0.8);
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 7; i++) {
     v += amp * noise(p);
     p = r * p * 2.02;
     amp *= 0.5;
   }
   return v;
+}
+
+// ridged fbm — sharp marble/vein ridges instead of soft blobs
+float ridged(vec2 p) {
+  float v = 0.0;
+  float amp = 0.5;
+  mat2 r = mat2(0.8, -0.6, 0.6, 0.8);
+  for (int i = 0; i < 6; i++) {
+    float n = 1.0 - abs(noise(p) * 2.0 - 1.0);
+    v += amp * n * n;
+    p = r * p * 2.03;
+    amp *= 0.5;
+  }
+  return v;
+}
+
+// swirl the domain around a moving vortex center — storm eddies
+vec2 swirl(vec2 p, vec2 c, float strength, float radius) {
+  vec2 d = p - c;
+  float r = length(d);
+  float a = strength * exp(-r * r / (radius * radius));
+  float s = sin(a), co = cos(a);
+  return c + mat2(co, -s, s, co) * d;
 }
 
 vec3 hueShift(vec3 color, float a) {
@@ -79,56 +102,105 @@ void main() {
   float lat = asin(clamp(p.y, -1.0, 1.0));
   vec2 s = vec2(lon * 1.6, lat * 2.0);
 
-  // double-warped flow field — this is what makes it feel alive
+  // storm eddies: swirl the surface domain around a few slow-drifting vortices
+  // so the flow spirals like weather systems instead of just drifting
   float t1 = uFlow * 0.02;
+  vec2 sw = s;
+  sw = swirl(sw, vec2(0.9 + 0.5 * sin(t1 * 0.3), 0.6), 0.85 + 0.5 * uEnergy, 1.1);
+  sw = swirl(sw, vec2(-1.4, -0.8 + 0.4 * cos(t1 * 0.24)), -0.65 - 0.4 * uEnergy, 0.9);
+  sw = swirl(sw, vec2(0.2 + 0.7 * cos(t1 * 0.19), 1.7), 0.55, 0.7);
+
+  // double-warped flow field — this is what makes it feel alive
   vec2 q = vec2(
-    fbm(s + vec2(t1, -t1 * 0.7)),
-    fbm(s + vec2(5.2, 1.3) - vec2(t1 * 0.8, t1 * 0.5))
+    fbm(sw + vec2(t1, -t1 * 0.7)),
+    fbm(sw + vec2(5.2, 1.3) - vec2(t1 * 0.8, t1 * 0.5))
   );
   vec2 w = vec2(
-    fbm(s + 3.0 * q + vec2(1.7, 9.2) + vec2(t1 * 0.6, 0.0)),
-    fbm(s + 3.0 * q + vec2(8.3, 2.8))
+    fbm(sw + 3.0 * q + vec2(1.7, 9.2) + vec2(t1 * 0.6, 0.0)),
+    fbm(sw + 3.0 * q + vec2(8.3, 2.8))
   );
-  float f = fbm(s + 2.5 * w);
+  float f = fbm(sw + 2.5 * w);
 
-  // deep jewel body: indigo → royal violet, with a teal-shadowed underside
-  vec3 col = mix(vec3(0.08, 0.05, 0.19), vec3(0.34, 0.14, 0.46), f * 1.25);
-  col = mix(col, vec3(0.09, 0.28, 0.38), q.y * q.y * 0.5);          // teal deeps
-  col = mix(col, vec3(0.58, 0.20, 0.44), q.x * q.x * 0.65);          // magenta swells
-  col = mix(col, uAccent * 0.28, q.y * 0.20);
+  // MAIN COLOR: the body is built from shades of the tone accent, so the hue
+  // lives in the material itself instead of washing over it like a filter
+  vec3 aDeep = uAccent * 0.14 + vec3(0.03, 0.02, 0.05);
+  vec3 aBody = uAccent * 0.60;
+  vec3 aLit  = mix(uAccent, vec3(1.0), 0.28);
+  vec3 col = mix(aDeep, aBody, f * 1.25);
+  col = mix(col, aLit, q.x * q.x * 0.55);
 
-  // marbled iridescent rivers along the flow contours
+  // SECONDARY minerals: quiet teal deeps + magenta swells for depth, kept low
+  // so they read as veining in the rock rather than a second wash of color
+  col = mix(col, vec3(0.07, 0.24, 0.32), q.y * q.y * 0.24);
+  col = mix(col, vec3(0.40, 0.13, 0.38), pow(q.x, 3.0) * 0.26);
+
+  // ridged marble veins carve sharp structure into the surface — dark seams
+  // in the troughs, bright mineral crests on the ridges
+  float marble = ridged(sw * 2.3 + 1.5 * w);
+  col *= 0.72 + 0.5 * marble;                                   // carve shadowed seams
+  col += mix(uAccent, vec3(1.0), 0.5) * pow(marble, 4.0) * 0.35; // bright crests
+
+  // marbled iridescent rivers — a subtle secondary shimmer
   float fil = pow(0.5 + 0.5 * sin(f * 14.0 - uFlow * 0.15), 10.0);
   vec3 neon = pal(fract(w.x * 0.8 + uFlow * 0.004));
-  col += neon * fil * (0.40 + 0.7 * w.y) * (1.0 + 1.3 * uEnergy);
+  col += neon * fil * (0.26 + 0.5 * w.y) * (1.0 + 1.1 * uEnergy);
+  // finer capillary rivers layered on top for intricate marbling
+  float fil2 = pow(0.5 + 0.5 * sin(f * 34.0 + w.x * 7.0 - uFlow * 0.22), 14.0);
+  col += pal(fract(w.y * 0.9 + 0.4 + uFlow * 0.006)) * fil2 * 0.16 * (1.0 + 1.2 * uEnergy);
 
-  // glowing ember veins, warm but cooled with a rose core so it isn't pure gold
+  // GOLDEN BURST: ember veins that smoulder faintly at rest and flare bright
+  // gold as you type (uEnergy drives the pop)
   float crackBase = fbm(s * 2.6 + 2.2 * w + 3.0);
   float vein = pow(0.5 + 0.5 * sin(crackBase * 18.0 + w.y * 4.0), 16.0);
-  float flicker = 0.8 + (0.3 + 0.5 * uEnergy) * sin(uFlow * 0.8 + crackBase * 20.0);
-  vec3 ember = mix(vec3(0.92, 0.16, 0.34), vec3(1.0, 0.58, 0.22), vein * flicker);
-  col += ember * vein * flicker * (0.42 + 0.7 * q.x) * (1.0 + 1.4 * uEnergy);
+  float flicker = 0.8 + (0.3 + 0.6 * uEnergy) * sin(uFlow * 0.8 + crackBase * 20.0);
+  vec3 ember = mix(vec3(0.96, 0.44, 0.08), vec3(1.0, 0.86, 0.40), vein * flicker);
+  col += ember * vein * flicker * (0.30 + 0.6 * q.x) * (0.55 + 3.2 * uEnergy);
 
-  // frosted highlands — cool lilac to icy blue-white
+  // frosted highlands — cool icy clouds that keep the accent from going flat
   float land = smoothstep(0.52, 0.62, fbm(s * 1.4 + 4.0 * q + 11.0));
   float rock = fbm(s * 7.0 + w * 2.0);
   vec3 frost = mix(vec3(0.46, 0.50, 0.72), vec3(0.82, 0.86, 0.96), rock * rock * 1.3);
-  col = mix(col, frost, land * 0.85);
-  // embers burn through at the highland edges
-  col += ember * land * (1.0 - land) * 4.0 * vein * 1.6;
+  col = mix(col, frost, land * 0.70);
+  // golden embers burn through at the highland edges, brighter as you type
+  col += ember * land * (1.0 - land) * 4.0 * vein * (1.0 + 2.0 * uEnergy);
 
-  // soft lighting from the upper right, like the reference
-  float l = dot(vec3(p, z), normalize(vec3(0.25, 0.55, 0.80)));
-  col *= 0.45 + 0.65 * clamp(l, 0.0, 1.0);
+  // fine mineral grain — micro-texture that only shows at high resolution
+  float micro = fbm(s * 15.0 + 3.0 * w);
+  col *= 0.93 + 0.14 * micro;
 
-  // atmosphere rim: cool violet halo with a rose-gold horizon glow up top
+  // photographic lighting from the upper right
+  vec3 nrm = vec3(p, z);
+  vec3 lightDir = normalize(vec3(0.28, 0.52, 0.80));
+  float l = dot(nrm, lightDir);
+  col *= 0.42 + 0.68 * clamp(l, 0.0, 1.0);
+  // subsurface warmth bleeding through the lit hemisphere
+  col += uAccent * 0.05 * smoothstep(-0.1, 1.0, l);
+  // glossy specular sheen — a wet, glassy catch-light, brighter as you type
+  float spec = pow(max(0.0, l), 42.0);
+  col += vec3(1.0, 0.96, 0.90) * spec * (0.14 + 0.16 * uEnergy);
+  // limb darkening rounds the sphere and deepens the terminator
+  col *= mix(1.0, 0.52, pow(clamp(rr0, 0.0, 1.0), 3.2));
+
+  // thin-film iridescence — an oil-on-water sheen that shifts with view angle,
+  // strongest near the grazing limb where the atmosphere catches the light
+  float fres = pow(1.0 - z, 2.0);
+  vec3 film = 0.5 + 0.5 * cos(6.28318 * (fres * 2.4 + w.x * 0.5 + vec3(0.0, 0.33, 0.66)));
+  col += film * fres * (0.10 + 0.10 * uEnergy) * clamp(l + 0.3, 0.0, 1.0);
+
+  // sparkle flecks — tiny mineral glints scattered across the lit face
+  float spk = fbm(sw * 26.0 + 7.0 * w);
+  float glint = smoothstep(0.86, 0.99, spk) * pow(max(0.0, l), 2.0);
+  col += vec3(1.0, 0.97, 0.9) * glint * (0.6 + 1.4 * uEnergy)
+       * (0.6 + 0.4 * sin(uFlow * 1.3 + spk * 40.0));
+
+  // atmosphere rim: accent-tinted halo with a golden horizon glow up top
   float rim = pow(1.0 - z, 2.5);
-  col += vec3(0.42, 0.34, 0.66) * rim * (0.34 + 0.4 * uEnergy);
-  col += vec3(1.0, 0.52, 0.46) * rim * max(p.y, 0.0) * 0.42;
+  col += mix(vec3(0.42, 0.34, 0.66), uAccent, 0.6) * rim * (0.34 + 0.4 * uEnergy);
+  col += vec3(1.0, 0.78, 0.34) * rim * max(p.y, 0.0) * (0.28 + 0.4 * uEnergy);
   col += uAccent * rim * uEnergy * 0.3;
 
-  // slow whole-planet hue breathing — gentle drift through the jewel range
-  col = hueShift(col, sin(uTime * 0.03) * 0.32);
+  // slow whole-planet hue breathing — narrowed so it stays near the accent hue
+  col = hueShift(col, sin(uTime * 0.03) * 0.12);
 
   col += (hash(floor(gl_FragCoord.xy / 2.0) + fract(uTime)) - 0.5) * 0.015;
 
@@ -203,8 +275,11 @@ export function Planet({ accent, pulse = 0, excited = false }: PlanetProps) {
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const size = canvas.clientWidth;
-      canvas.width = Math.max(1, Math.floor(size * dpr));
-      canvas.height = Math.max(1, Math.floor(size * dpr));
+      // supersample above the display size for crisp filaments, then let CSS
+      // downscale — capped so huge viewports don't melt the GPU
+      const px = Math.max(1, Math.min(Math.floor(size * dpr * 1.5), 1800));
+      canvas.width = px;
+      canvas.height = px;
       gl.viewport(0, 0, canvas.width, canvas.height);
     };
     resize();
@@ -216,6 +291,8 @@ export function Planet({ accent, pulse = 0, excited = false }: PlanetProps) {
     const start = performance.now();
     let last = start;
     let flowTime = 40.0;
+    // current accent, eased toward the target so tone changes glide in color
+    const curAccent = hexToRgb(accentRef.current);
 
     const frame = (now: number) => {
       const dt = Math.min((now - last) / 1000, 0.1);
@@ -228,14 +305,18 @@ export function Planet({ accent, pulse = 0, excited = false }: PlanetProps) {
       // typing makes the surface churn up to ~6x faster
       flowTime += dt * (1 + 5 * e);
 
-      const [r, g, b] = hexToRgb(accentRef.current);
+      const [tr, tg, tb] = hexToRgb(accentRef.current);
+      const k = 1 - Math.exp(-dt / 0.35); // ~0.35s ease toward the new accent
+      curAccent[0] += (tr - curAccent[0]) * k;
+      curAccent[1] += (tg - curAccent[1]) * k;
+      curAccent[2] += (tb - curAccent[2]) * k;
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.uniform2f(uRes, canvas.width, canvas.height);
       gl.uniform1f(uTime, (now - start) / 1000 + 40.0);
       gl.uniform1f(uFlow, flowTime);
       gl.uniform1f(uEnergy, e);
-      gl.uniform3f(uAccent, r, g, b);
+      gl.uniform3f(uAccent, curAccent[0], curAccent[1], curAccent[2]);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       if (!reducedMotion) raf = requestAnimationFrame(frame);
     };

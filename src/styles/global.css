@@ -142,7 +142,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible {
 /* ————— ask (input) ————— */
 .ask {
   width: min(560px, 100%);
-  margin-top: -72px;
+  margin-top: -108px;
   position: relative;
   z-index: 3;
   animation: fadeUp 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) 0.15s both;
